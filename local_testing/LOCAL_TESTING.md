@@ -186,7 +186,7 @@ MONGO_PORT: 27017
 MONGO_DB: pagesuccess
 MONGO_USERNAME: admin
 MONGO_PASSWORD: password
-ENVIRONMENT: staging
+ENVIRONMENT: local
 ```
 
 ### Changing Configuration

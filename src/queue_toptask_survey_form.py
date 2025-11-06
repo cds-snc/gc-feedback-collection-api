@@ -21,76 +21,91 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Initialize SQS client
-sqs = boto3.client('sqs')
-QUEUE_URL = os.environ.get('TOPTASK_QUEUE_URL', '')
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "production")
+QUEUE_URL = os.environ.get("TOPTASK_QUEUE_URL", "")
+
+# Configure SQS client with local endpoint for local development
+if ENVIRONMENT == "local":
+    # Extract endpoint from QUEUE_URL for local testing
+    import re
+
+    match = re.match(r"(https?://[^/]+)", QUEUE_URL)
+    endpoint = match.group(1) if match else "http://localhost:9324"
+
+    sqs = boto3.client(
+        "sqs",
+        endpoint_url=endpoint,
+        region_name="ca-central-1",
+        aws_access_key_id="local",
+        aws_secret_access_key="local",
+    )
+else:
+    sqs = boto3.client("sqs")
 
 
-def parse_form_data(body: str, content_type: str = '') -> Dict[str, Any]:
+def parse_form_data(body: str, content_type: str = "") -> Dict[str, Any]:
     """
     Parse form data from request body.
-    
+
     Args:
         body: Request body
         content_type: Content-Type header
-        
+
     Returns:
         Dictionary of form fields
     """
-    if 'application/json' in content_type:
+    if "application/json" in content_type:
         return json.loads(body)
     else:
         # Parse URL-encoded form data
         parsed = parse_qs(body)
         # Convert list values to single strings
-        return {k: v[0] if isinstance(v, list) and len(v) > 0 else v for k, v in parsed.items()}
+        return {
+            k: v[0] if isinstance(v, list) and len(v) > 0 else v
+            for k, v in parsed.items()
+        }
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Lambda handler for QueueTopTaskSurveyForm function.
-    
+
     Args:
         event: API Gateway event containing survey form data
         context: Lambda context
-        
+
     Returns:
         API Gateway response
     """
     try:
         # Parse request body
-        body = event.get('body', '')
-        if event.get('isBase64Encoded', False):
+        body = event.get("body", "")
+        if event.get("isBase64Encoded", False):
             import base64
-            body = base64.b64decode(body).decode('utf-8')
-        
-        headers = event.get('headers', {})
-        content_type = headers.get('Content-Type', '') or headers.get('content-type', '')
-        
+
+            body = base64.b64decode(body).decode("utf-8")
+
+        headers = event.get("headers", {})
+        content_type = headers.get("Content-Type", "") or headers.get(
+            "content-type", ""
+        )
+
         # Parse form data or JSON
         survey_data = parse_form_data(body, content_type)
-        
-        # Convert to JSON string for queue
+
+        # Convert to JSON string for queue (form submission format)
         json_data = json.dumps(survey_data, indent=2)
         logger.info(json_data)
-        
+
         logger.info("Trying to add to queue")
-        
+
         # Send to SQS queue
-        response = sqs.send_message(
-            QueueUrl=QUEUE_URL,
-            MessageBody=json_data
-        )
-        
+        response = sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json_data)
+
         logger.info(f"Data queued successfully. MessageId: {response['MessageId']}")
-        
-        return {
-            'statusCode': 200,
-            'body': json.dumps({'message': 'Data received.'})
-        }
-        
+
+        return {"statusCode": 200, "body": json.dumps({"message": "Data received."})}
+
     except Exception as e:
         logger.error(f"Error processing survey form: {str(e)}", exc_info=True)
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Bad data....'})
-        }
+        return {"statusCode": 400, "body": json.dumps({"error": "Bad data...."})}

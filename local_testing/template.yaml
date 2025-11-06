@@ -14,7 +14,7 @@ Globals:
         MONGO_DB: !Ref MongoDb
         MONGO_USERNAME: !Ref MongoUsername
         MONGO_PASSWORD: !Ref MongoPassword
-        ENVIRONMENT: staging
+        ENVIRONMENT: local
         PROBLEM_QUEUE_URL: http://host.docker.internal:9324/000000000000/problem-queue
         TOPTASK_QUEUE_URL: http://host.docker.internal:9324/000000000000/toptask-queue
         AWS_ACCESS_KEY_ID: local
