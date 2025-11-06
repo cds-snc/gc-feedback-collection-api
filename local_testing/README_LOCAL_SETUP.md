@@ -1,235 +1,118 @@
-# GC Feedback Collection API - Local Testing Setup
+# GC Feedback Collection API - Local Testing
 
-This repository now includes a complete local testing environment using AWS SAM and Docker, allowing you to test the full AWS Lambda workflow locally before deploying to AWS.
+Test the full AWS Lambda workflow locally using AWS SAM and Docker before deploying to AWS.
 
 ## Quick Start
 
 ```bash
-# 1. Start the local environment (MongoDB + SAM API)
-./start-local.sh
+# Start everything
+./start-local-mock-infrastructure.sh
 
-# 2. In another terminal, run the test suite
-./test-local.sh
+# Test in another terminal
+./test-local-mock-infrastructure.sh
 ```
 
-## What's Included
+## API Endpoints (http://localhost:3000)
 
-### Files Created
+| Endpoint                       | Purpose                         |
+| ------------------------------ | ------------------------------- |
+| `POST /problem/form`           | Submit problem feedback (form)  |
+| `POST /problem/email`          | Submit problem feedback (email) |
+| `POST /toptask/survey/form`    | Submit top task survey (form)   |
+| `POST /toptask/email`          | Submit top task survey (email)  |
+| `POST /admin/process-problems` | Process problem queue           |
+| `POST /admin/process-toptasks` | Process top task queue          |
 
-- **`template.yaml`** - SAM template defining all Lambda functions, API Gateway, and SQS queues
-- **`docker-compose.yml`** - MongoDB and ElasticMQ (local SQS) configuration
-- **`samconfig.toml`** - SAM CLI configuration for local testing
-- **`start-local.sh`** - One-command startup script
-- **`test-local.sh`** - Automated test suite
-- **`scripts/init-mongo.js`** - MongoDB initialization script
-- **`scripts/elasticmq.conf`** - Local SQS queue configuration
-- **`test-events/problem-form.json`** - Sample test event
-- **`LOCAL_TESTING.md`** - Comprehensive testing documentation
-- **`.gitignore`** - Git ignore file for build artifacts
+## Architecture
 
-### API Endpoints (Local)
+### Production (AWS)
 
-All available at `http://localhost:3000`:
+- **Forms:** Web Form → API Gateway → Lambda → SQS → EventBridge → Commit Lambda → DocumentDB
+- **Emails:** SES Email → SNS → Lambda → SQS → EventBridge → Commit Lambda → DocumentDB
 
-| Endpoint                       | Purpose                                   |
-| ------------------------------ | ----------------------------------------- |
-| `POST /problem/form`           | Submit problem feedback (form submission) |
-| `POST /problem/email`          | Submit problem feedback (email webhook)   |
-| `POST /toptask/survey/form`    | Submit top task survey                    |
-| `POST /toptask/email`          | Submit top task email                     |
-| `POST /admin/process-problems` | Manually process problem queue → MongoDB  |
-| `POST /admin/process-toptasks` | Manually process top task queue → MongoDB |
+### Local (Docker)
 
-### Local Infrastructure
+- **Forms:** curl → API Gateway (SAM) → Lambda → ElasticMQ → Manual API → MongoDB
+- **Emails (mock):** curl → API Gateway (SAM) → Lambda → ElasticMQ → Manual API → MongoDB
 
-```
-┌─────────────────────────────────────────────┐
-│  Your Machine (localhost)                   │
-│                                             │
-│  ┌─────────────────┐                       │
-│  │ API Gateway     │  :3000                │
-│  │ (SAM Local)     │                       │
-│  └────────┬────────┘                       │
-│           │                                 │
-│           ▼                                 │
-│  ┌─────────────────┐                       │
-│  │ Lambda Functions│                       │
-│  │ - queue_*       │                       │
-│  │ - *_commit      │                       │
-│  └────────┬────────┘                       │
-│           │                                 │
-│           ▼                                 │
-│  ┌─────────────────┐                       │
-│  │ SQS Queues      │  (in-memory)          │
-│  │ - problem-queue │                       │
-│  │ - toptask-queue │                       │
-│  └────────┬────────┘                       │
-│           │                                 │
-│           ▼                                 │
-│  ┌─────────────────┐                       │
-│  │ MongoDB         │  :27017               │
-│  │ (Docker)        │                       │
-│  │ - problem       │                       │
-│  │ - toptasksurvey │                       │
-│  └─────────────────┘                       │
-└─────────────────────────────────────────────┘
-```
+**Key Difference:** Production has two distinct input paths (API Gateway for forms, SES/SNS for emails); local uses API Gateway for both.
 
-## Workflow Testing
-
-The local setup replicates the production flow:
-
-1. **Submit Data** → HTTP POST to API endpoints
-2. **Queue** → Lambda functions write to SQS
-3. **Process** → Commit functions read from SQS (manual trigger for local)
-4. **Store** → Data written to MongoDB collections
-
-## Example: Testing Problem Feedback Flow
+## Testing Example
 
 ```bash
-# Terminal 1: Start the environment
-./start-local.sh
-
-# Terminal 2: Test the flow
-# Step 1: Submit a problem form
+# Submit problem feedback
 curl -X POST http://localhost:3000/problem/form \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "submissionPage=https://www.canada.ca/en/services/taxes.html" \
-  -d "pageTitle=Taxes" \
-  -d "language=en" \
-  -d "institutionopt=CRA" \
+  -d "submissionPage=https://www.canada.ca/taxes" \
   -d "details=Test feedback" \
   -d "helpful=no"
 
-# Step 2: Process the queue (writes to MongoDB)
+# Process queue
 curl -X POST http://localhost:3000/admin/process-problems
 
-# Step 3: Verify in MongoDB
-docker exec gc-feedback-mongodb mongosh pagesuccess --quiet \
-  --eval "db.problem.find().pretty()"
+# Verify
+docker exec gc-feedback-mongodb mongosh -u admin -p password --authenticationDatabase admin pagesuccess --quiet --eval "db.problem.find().pretty()"
 ```
 
 ## MongoDB Access
 
 ```bash
-# Connect to MongoDB shell
-docker exec -it gc-feedback-mongodb mongosh pagesuccess
-
-# View data
-db.problem.find().pretty()
-db.toptasksurvey.find().pretty()
+# Connect
+docker exec -it gc-feedback-mongodb mongosh -u admin -p password --authenticationDatabase admin pagesuccess
 
 # Count records
 db.problem.countDocuments()
 db.toptasksurvey.countDocuments()
 
-# Clear all data
+# Clear data
 db.problem.deleteMany({})
-db.originalproblem.deleteMany({})
 db.toptasksurvey.deleteMany({})
 ```
 
 ## Key Differences from AWS
 
-| Aspect          | AWS Production                | Local (SAM)            |
-| --------------- | ----------------------------- | ---------------------- |
-| **API Gateway** | Managed service               | SAM emulation          |
-| **Lambda**      | Isolated functions            | Docker containers      |
-| **SQS**         | Persistent queues             | ElasticMQ (persistent) |
-| **EventBridge** | Scheduled triggers (2 min)    | Manual API calls       |
-| **DocumentDB**  | Managed cluster               | MongoDB Docker         |
-| **Networking**  | VPC, subnets, security groups | Docker network         |
+| Component      | Production         | Local              |
+| -------------- | ------------------ | ------------------ |
+| **Email**      | SES → SNS → Lambda | HTTP POST (mock)   |
+| **SQS**        | AWS SQS            | ElasticMQ (Docker) |
+| **Scheduling** | EventBridge (2min) | Manual API calls   |
+| **Database**   | DocumentDB (TLS)   | MongoDB (no TLS)   |
+| **API/Lambda** | AWS managed        | SAM + Docker       |
 
-## Important Notes
-
-### SQS Queues
-
-- Local setup uses **ElasticMQ** - a lightweight SQS-compatible message queue running in Docker
-- Messages persist in ElasticMQ until processed (similar to AWS SQS)
-- In production, EventBridge triggers commit functions every 2 minutes
-- Locally, you must **manually trigger** commits via the admin endpoints (`/admin/process-problems` and `/admin/process-toptasks`)
-
-### MongoDB vs DocumentDB
-
-- Local: Standard MongoDB 7.0 (simpler, no TLS required)
-- Production: DocumentDB (MongoDB-compatible, TLS required)
-- The code handles both via the `ENVIRONMENT` variable
-
-### Network Configuration
-
-- `host.docker.internal` allows Lambda containers to reach MongoDB
-- Both services run on the same Docker network: `gc-feedback-network`
-
-## Stopping the Environment
+## Troubleshooting
 
 ```bash
-# Stop SAM (in terminal running start-local.sh)
-Ctrl+C
+# Check containers
+docker ps
 
-# Stop MongoDB
-docker-compose down
+# View logs
+docker logs gc-feedback-mongodb
+docker logs gc-feedback-sqs
 
-# Clean up everything (including data volumes)
+# Restart services
+docker-compose restart
+
+# Port conflict
+lsof -ti:3000 | xargs kill -9
+
+# Clean rebuild
+sam build --use-container
+```
+
+## Cleanup
+
+```bash
+# Stop everything
 docker-compose down -v
 docker network rm gc-feedback-network
 ```
 
-## Troubleshooting
-
-### "Connection refused" errors
-
-```bash
-# Check MongoDB status
-docker ps | grep mongodb
-
-# View MongoDB logs
-docker logs gc-feedback-mongodb
-
-# Restart MongoDB
-docker-compose restart mongodb
-```
-
-### Port 3000 already in use
-
-```bash
-# Find and kill the process
-lsof -ti:3000 | xargs kill -9
-
-# Or change the port in samconfig.toml
-```
-
-### SAM build fails
-
-```bash
-# Use container build (recommended)
-sam build --use-container
-
-# Or install dependencies locally
-pip install -r requirements.txt -t .
-```
-
 ## Next Steps
 
-After successful local testing:
+1. ✅ Test locally with various inputs
+2. ☐ Build Terraform for AWS infrastructure
+3. ☐ Deploy to AWS staging environment
+4. ☐ Configure SES email ingestion
+5. ☐ Test end-to-end in AWS
 
-1. ✅ **Verify Data Quality** - Check MongoDB records are correct
-2. ✅ **Test Edge Cases** - Invalid inputs, missing fields, special characters
-3. ✅ **Performance Test** - Multiple concurrent requests
-4. ☐ **Build Terraform** - Create infrastructure-as-code
-5. ☐ **Deploy to AWS** - Use Terraform to deploy production environment
-6. ☐ **Configure SES** - Set up email ingestion
-7. ☐ **Test in AWS** - Verify end-to-end in cloud environment
-
-## Additional Documentation
-
-- [LOCAL_TESTING.md](./LOCAL_TESTING.md) - Detailed testing guide
-- [architecture.md](./architecture.md) - AWS architecture overview
-- [src/README.md](./src/README.md) - Lambda functions documentation
-
-## Support
-
-For issues or questions:
-
-1. Check [LOCAL_TESTING.md](./LOCAL_TESTING.md) troubleshooting section
-2. Review SAM CLI logs for error details
-3. Verify Docker and MongoDB are running properly
+See [LOCAL_TESTING.md](./LOCAL_TESTING.md) for detailed testing guide.

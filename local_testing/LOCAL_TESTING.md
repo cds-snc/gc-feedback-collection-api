@@ -1,290 +1,156 @@
 # Local Testing Guide
 
-This guide explains how to test the GC Feedback Collection API locally using AWS SAM before deploying to AWS.
+Test the GC Feedback Collection API locally using AWS SAM and Docker.
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+- **Docker Desktop** - [Download](https://www.docker.com/products/docker-desktop)
+- **AWS SAM CLI** - `brew install aws-sam-cli`
+- **Python 3.11** - `python3 --version`
 
-1. **Docker Desktop** - For running containers locally
-   - [Download Docker Desktop](https://www.docker.com/products/docker-desktop)
-2. **AWS SAM CLI** - For local Lambda testing
+## Architecture
 
-   ```bash
-   # Install via Homebrew (macOS)
-   brew install aws-sam-cli
+**Production (AWS):**
 
-   # Or use pip
-   pip install aws-sam-cli
-   ```
+- **Forms:** Web Form → API Gateway → Lambda → SQS → EventBridge (2min) → Commit Lambda → DocumentDB
+- **Emails:** SES Email → SNS → Lambda → SQS → EventBridge (2min) → Commit Lambda → DocumentDB
 
-3. **Python 3.11** - Required for Lambda runtime
-   ```bash
-   # Check your Python version
-   python3 --version
-   ```
+**Local (Docker):**
 
-## Architecture Overview
+- **Forms:** curl → API Gateway (SAM) → Lambda → ElasticMQ → Manual API → MongoDB
+- **Emails (mock):** curl → API Gateway (SAM) → Lambda → ElasticMQ → Manual API → MongoDB
 
-The local setup replicates the AWS infrastructure:
+**Key Differences:**
 
-```
-┌─────────────┐         ┌──────────────┐         ┌──────────────┐
-│ HTTP POST   │────────▶│ API Gateway  │────────▶│   Lambda     │
-│ (curl/form) │         │ (SAM Local)  │         │  Functions   │
-└─────────────┘         └──────────────┘         └──────┬───────┘
-                                                          │
-                                                          ▼
-                                                   ┌──────────────┐
-                                                   │  SQS Queues  │
-                                                   │   (Local)    │
-                                                   └──────┬───────┘
-                                                          │
-                                                          ▼
-                                                   ┌──────────────┐
-                                                   │Commit Lambda │
-                                                   └──────┬───────┘
-                                                          │
-                                                          ▼
-                                                   ┌──────────────┐
-                                                   │   MongoDB    │
-                                                   │  (Docker)    │
-                                                   └──────────────┘
-```
+- Production has two input paths (API Gateway + SES/SNS); local uses API Gateway for both
+- Production auto-processes queues every 2 minutes; local requires manual trigger
 
 ## Quick Start
 
-### 1. Start Everything with One Command
-
 ```bash
-chmod +x start-local.sh test-local.sh
-./start-local.sh
+cd local_testing
+chmod +x start-local-mock-infrastructure.sh test-local-mock-infrastructure.sh
+
+# Start services
+./start-local-mock-infrastructure.sh
+
+# Test in another terminal
+./test-local-mock-infrastructure.sh
 ```
-
-This script will:
-
-- ✅ Check for required tools (Docker, SAM CLI)
-- ✅ Create necessary Docker network
-- ✅ Start MongoDB container
-- ✅ Build SAM application
-- ✅ Start API Gateway locally on port 3000
-
-### 2. Test the API (In Another Terminal)
-
-Once the API is running, open a new terminal and run:
-
-```bash
-./test-local.sh
-```
-
-This will:
-
-- Submit a problem form
-- Submit a top task survey
-- Process both queues (commit to MongoDB)
-- Display record counts in MongoDB
 
 ## Manual Testing
 
-### Submit Problem Feedback
+### Problem Feedback
+
+**Form:**
 
 ```bash
 curl -X POST http://localhost:3000/problem/form \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "submissionPage=https://www.canada.ca/en/services/taxes.html" \
-  -d "pageTitle=Taxes" \
-  -d "language=en" \
-  -d "institutionopt=CRA" \
-  -d "themeopt=taxes" \
-  -d "sectionopt=filing" \
-  -d "problem=other" \
-  -d "details=Test problem feedback" \
-  -d "helpful=no" \
-  -d "contact="
+  -d "submissionPage=https://www.canada.ca/taxes" \
+  -d "details=Test problem" \
+  -d "helpful=no"
 ```
 
-### Submit Top Task Survey
+**Email (mock SES/SNS):**
+
+```bash
+curl -X POST http://localhost:3000/problem/email \
+  -H "Content-Type: text/plain" \
+  -d "2025-11-06;CRA;taxes;filing;File taxes;https://www.canada.ca/taxes;No;404;Page error"
+```
+
+### Top Task Survey
+
+**Form:**
 
 ```bash
 curl -X POST http://localhost:3000/toptask/survey/form \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "surveyReferrer=https://www.canada.ca/en.html" \
+  -d "dateTime=2025-11-06T20:30:00Z" \
   -d "language=en" \
-  -d "screener=yes" \
-  -d "dept=ESDC" \
-  -d "theme=jobs" \
-  -d "task=find-job" \
-  -d "taskSatisfaction=satisfied" \
-  -d "taskEase=easy" \
-  -d "taskCompletion=yes" \
-  -d "taskImprove=Could be better" \
-  -d "taskSampling=Voluntary"
+  -d "satisfaction=5" \
+  -d "ease=4"
 ```
 
-### Process Queues (Commit to MongoDB)
+**Email (mock SES/SNS with ~!~ delimiter):**
 
 ```bash
-# Process problem queue
-curl -X POST http://localhost:3000/admin/process-problems
+curl -X POST http://localhost:3000/toptask/email \
+  -H "Content-Type: text/plain" \
+  -d "2025-11-06T20:30:00Z~!~https://www.canada.ca~!~en~!~Desktop~!~Yes~!~ESDC~!~Benefits~!~~!~EI~!~Apply~!~~!~~!~~!~~!~~!~~!~4~!~3~!~Yes~!~Yes~!~Confusing~!~~!~~!~email:gc:ca"
+```
 
-# Process top task queue
+### Process Queues
+
+```bash
+curl -X POST http://localhost:3000/admin/process-problems
 curl -X POST http://localhost:3000/admin/process-toptasks
 ```
 
-## Available Endpoints
-
-| Endpoint                  | Method | Description                                |
-| ------------------------- | ------ | ------------------------------------------ |
-| `/problem/form`           | POST   | Submit problem feedback form               |
-| `/problem/email`          | POST   | Webhook for email-based problem feedback   |
-| `/toptask/survey/form`    | POST   | Submit top task survey form                |
-| `/toptask/email`          | POST   | Webhook for email-based surveys            |
-| `/admin/process-problems` | POST   | Manually trigger problem queue processing  |
-| `/admin/process-toptasks` | POST   | Manually trigger top task queue processing |
-
 ## MongoDB Access
 
-### Connect to MongoDB
-
 ```bash
-docker exec -it gc-feedback-mongodb mongosh pagesuccess
-```
+# Connect
+docker exec -it gc-feedback-mongodb mongosh -u admin -p password --authenticationDatabase admin pagesuccess
 
-### View Collections
+# Query collections
+db.problem.find().pretty()
+db.toptasksurvey.find().pretty()
 
-```javascript
-// In MongoDB shell
-db.problem.find().pretty();
-db.originalproblem.find().pretty();
-db.toptasksurvey.find().pretty();
-```
+# Count records
+db.problem.countDocuments()
+db.toptasksurvey.countDocuments()
 
-### Count Records
-
-```bash
-docker exec gc-feedback-mongodb mongosh pagesuccess --quiet --eval "db.problem.countDocuments()"
-docker exec gc-feedback-mongodb mongosh pagesuccess --quiet --eval "db.toptasksurvey.countDocuments()"
-```
-
-### Clear All Data
-
-```bash
-docker exec gc-feedback-mongodb mongosh pagesuccess --quiet --eval "db.problem.deleteMany({})"
-docker exec gc-feedback-mongodb mongosh pagesuccess --quiet --eval "db.originalproblem.deleteMany({})"
-docker exec gc-feedback-mongodb mongosh pagesuccess --quiet --eval "db.toptasksurvey.deleteMany({})"
-```
-
-## Configuration
-
-### Environment Variables
-
-The local setup uses these default values (configured in `template.yaml`):
-
-```yaml
-MONGO_URL: host.docker.internal
-MONGO_PORT: 27017
-MONGO_DB: pagesuccess
-MONGO_USERNAME: admin
-MONGO_PASSWORD: password
-ENVIRONMENT: local
-```
-
-### Changing Configuration
-
-Edit `samconfig.toml` to modify parameters:
-
-```toml
-parameter_overrides = "MongoUrl=host.docker.internal MongoPort=27017 ..."
+# Clear data
+db.problem.deleteMany({})
+db.originalproblem.deleteMany({})
+db.toptasksurvey.deleteMany({})
 ```
 
 ## Troubleshooting
 
-### MongoDB Connection Issues
-
-If you see "connection refused" errors:
-
 ```bash
-# Check if MongoDB is running
-docker ps | grep mongodb
+# Check services
+docker ps
 
-# View MongoDB logs
+# View logs
 docker logs gc-feedback-mongodb
+docker logs gc-feedback-sqs
 
-# Restart MongoDB
-docker-compose restart mongodb
-```
+# Restart services
+docker-compose restart
 
-### SAM Build Fails
+# Port conflict
+lsof -ti:3000 | xargs kill -9
 
-```bash
-# Clean and rebuild
+# Rebuild
 sam build --use-container
 
-# If Docker issues persist
-docker system prune -a
+# Check ElasticMQ queues
+curl http://localhost:9325/queues
 ```
 
-### SQS Queue Not Working
+## Local vs AWS
 
-SAM Local uses in-memory queues. Messages only persist while the API is running. To test queue processing:
+| Component  | Production         | Local                    |
+| ---------- | ------------------ | ------------------------ |
+| Email      | SES → SNS → Lambda | HTTP POST (mock)         |
+| SQS        | AWS SQS            | ElasticMQ (Docker)       |
+| Scheduling | EventBridge (2min) | Manual API calls         |
+| Database   | DocumentDB (TLS)   | MongoDB (Docker, no TLS) |
+| API/Lambda | AWS managed        | SAM + Docker             |
 
-1. Submit data via API endpoints
-2. Messages are added to in-memory SQS
-3. Call admin endpoints to process queues
-4. Data is written to MongoDB
-
-### Port Already in Use
-
-If port 3000 is already in use:
-
-1. Edit `samconfig.toml` and change the port
-2. Or stop the conflicting service:
-   ```bash
-   lsof -ti:3000 | xargs kill -9
-   ```
-
-## Differences from AWS
-
-| Feature     | AWS                | Local (SAM)       |
-| ----------- | ------------------ | ----------------- |
-| SQS         | Persistent queues  | In-memory queues  |
-| EventBridge | Scheduled triggers | Manual API calls  |
-| DocumentDB  | Managed service    | Docker MongoDB    |
-| API Gateway | Fully managed      | SAM emulation     |
-| Lambda      | Isolated execution | Docker containers |
-
-## Next Steps
-
-After testing locally:
-
-1. **Review Logs**: Check CloudWatch-style logs in terminal
-2. **Verify Data**: Query MongoDB to ensure data is correct
-3. **Test Edge Cases**: Try invalid inputs, missing fields, etc.
-4. **Performance Testing**: Test with multiple concurrent requests
-5. **Deploy to AWS**: Once satisfied, deploy with Terraform/CloudFormation
-
-## Clean Up
-
-### Stop API Server
-
-Press `Ctrl+C` in the terminal running SAM
-
-### Stop MongoDB
+## Cleanup
 
 ```bash
-docker-compose down
-```
-
-### Remove All Containers and Data
-
-```bash
+# Stop SAM: Ctrl+C in running terminal
 docker-compose down -v
 docker network rm gc-feedback-network
 ```
 
-## Additional Resources
+## Resources
 
 - [AWS SAM Documentation](https://docs.aws.amazon.com/serverless-application-model/)
-- [SAM Local Testing](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-test-and-debug.html)
-- [MongoDB Docker Image](https://hub.docker.com/_/mongo)
-- [Architecture Documentation](./architecture.md)
+- [ElasticMQ (Local SQS)](https://github.com/softwaremill/elasticmq)
+- [Architecture Documentation](../architecture.md)
