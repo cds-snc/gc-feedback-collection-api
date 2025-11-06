@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: GC Feedback Collection API - SAM Local Testing Template
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: python3.11
+    Environment:
+      Variables:
+        MONGO_URL: !Ref MongoUrl
+        MONGO_PORT: !Ref MongoPort
+        MONGO_DB: !Ref MongoDb
+        MONGO_USERNAME: !Ref MongoUsername
+        MONGO_PASSWORD: !Ref MongoPassword
+        ENVIRONMENT: staging
+        PROBLEM_QUEUE_URL: http://host.docker.internal:9324/000000000000/problem-queue
+        TOPTASK_QUEUE_URL: http://host.docker.internal:9324/000000000000/toptask-queue
+        AWS_ACCESS_KEY_ID: local
+        AWS_SECRET_ACCESS_KEY: local
+        AWS_DEFAULT_REGION: ca-central-1
+
+Parameters:
+  MongoUrl:
+    Type: String
+    Default: host.docker.internal
+    Description: MongoDB host URL for SAM local testing
+  MongoPort:
+    Type: String
+    Default: "27017"
+    Description: MongoDB port
+  MongoDb:
+    Type: String
+    Default: pagesuccess
+    Description: MongoDB database name
+  MongoUsername:
+    Type: String
+    Default: admin
+    Description: MongoDB username
+  MongoPassword:
+    Type: String
+    Default: password
+    Description: MongoDB password
+
+Resources:
+  # ============================================
+  # SQS Queues
+  # ============================================
+  ProblemQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: problem-queue
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 345600 # 4 days
+
+  ProblemDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: problem-queue-dlq
+      MessageRetentionPeriod: 1209600 # 14 days
+
+  TopTaskQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: toptask-queue
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 345600
+
+  TopTaskDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: toptask-queue-dlq
+      MessageRetentionPeriod: 1209600
+
+  # ============================================
+  # Lambda Functions - Queue Functions
+  # ============================================
+  QueueProblemFormFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: queue-problem-form
+      CodeUri: ../src/
+      Handler: queue_problem_form.lambda_handler
+      Description: Handles POST requests from problem feedback forms
+      Events:
+        ApiPost:
+          Type: Api
+          Properties:
+            Path: /problem/form
+            Method: POST
+            RestApiId: !Ref FeedbackApi
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ProblemQueue.QueueName
+
+  QueueProblemFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: queue-problem
+      CodeUri: ../src/
+      Handler: queue_problem.lambda_handler
+      Description: Processes inbound emails containing problem feedback
+      Events:
+        ApiPost:
+          Type: Api
+          Properties:
+            Path: /problem/email
+            Method: POST
+            RestApiId: !Ref FeedbackApi
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ProblemQueue.QueueName
+
+  QueueTopTaskSurveyFormFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: queue-toptask-survey-form
+      CodeUri: ../src/
+      Handler: queue_toptask_survey_form.lambda_handler
+      Description: Handles survey form submissions
+      Events:
+        ApiPost:
+          Type: Api
+          Properties:
+            Path: /toptask/survey/form
+            Method: POST
+            RestApiId: !Ref FeedbackApi
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt TopTaskQueue.QueueName
+
+  QueueTopTaskFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: queue-toptask
+      CodeUri: ../src/
+      Handler: queue_toptask.lambda_handler
+      Description: Processes survey emails
+      Events:
+        ApiPost:
+          Type: Api
+          Properties:
+            Path: /toptask/email
+            Method: POST
+            RestApiId: !Ref FeedbackApi
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt TopTaskQueue.QueueName
+
+  # ============================================
+  # Lambda Functions - Commit Functions
+  # ============================================
+  ProblemCommitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: problem-commit
+      CodeUri: ../src/
+      Handler: problem_commit.lambda_handler
+      Description: Processes queued messages and commits to MongoDB
+      Timeout: 300
+      Events:
+        # For local testing, we'll invoke this manually or via API
+        ManualInvoke:
+          Type: Api
+          Properties:
+            Path: /admin/process-problems
+            Method: POST
+            RestApiId: !Ref FeedbackApi
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt ProblemQueue.QueueName
+
+  TopTaskSurveyCommitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: top-task-survey-commit
+      CodeUri: ../src/
+      Handler: top_task_survey_commit.lambda_handler
+      Description: Processes survey queue and commits to MongoDB
+      Timeout: 300
+      Events:
+        # For local testing, we'll invoke this manually or via API
+        ManualInvoke:
+          Type: Api
+          Properties:
+            Path: /admin/process-toptasks
+            Method: POST
+            RestApiId: !Ref FeedbackApi
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt TopTaskQueue.QueueName
+
+  # ============================================
+  # API Gateway
+  # ============================================
+  FeedbackApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: feedback-collection-api
+      StageName: local
+      Cors:
+        AllowMethods: "'POST, GET, OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+Outputs:
+  FeedbackApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com/local/"
+
+  ProblemQueueUrl:
+    Description: Problem Queue URL
+    Value: !Ref ProblemQueue
+
+  TopTaskQueueUrl:
+    Description: TopTask Queue URL
+    Value: !Ref TopTaskQueue
+
+  # API Endpoints
+  ProblemFormEndpoint:
+    Description: Problem Form Submission Endpoint
+    Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com/local/problem/form"
+
+  ProblemEmailEndpoint:
+    Description: Problem Email Webhook Endpoint
+    Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com/local/problem/email"
+
+  TopTaskSurveyFormEndpoint:
+    Description: TopTask Survey Form Endpoint
+    Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com/local/toptask/survey/form"
+
+  TopTaskEmailEndpoint:
+    Description: TopTask Email Webhook Endpoint
+    Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com/local/toptask/email"
+
+  ProcessProblemsEndpoint:
+    Description: Manual trigger to process problem queue
+    Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com/local/admin/process-problems"
+
+  ProcessTopTasksEndpoint:
+    Description: Manual trigger to process toptask queue
+    Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com/local/admin/process-toptasks"
