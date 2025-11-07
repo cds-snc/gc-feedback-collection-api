@@ -7,6 +7,7 @@ Fetches credentials securely from SSM Parameter Store.
 import os
 import boto3
 from typing import Optional
+from urllib.parse import quote_plus
 from pymongo import MongoClient
 from pymongo.database import Database
 
@@ -80,25 +81,31 @@ class MongoDBConnection:
             # Fetch credentials securely
             mongo_username, mongo_password = get_mongo_credentials()
 
-            if environment == "local":
-                # Local development - use authentication if credentials provided
-                if mongo_username and mongo_password:
+            # URL-encode credentials to handle special characters
+            encoded_username = quote_plus(mongo_username) if mongo_username else ""
+            encoded_password = quote_plus(mongo_password) if mongo_password else ""
+
+            try:
+                if environment == "local":
+                    # Local development - no TLS
+                    if encoded_username and encoded_password:
+                        connection_string = (
+                            f"mongodb://{encoded_username}:{encoded_password}@{mongo_url}:{mongo_port}/"
+                            f"{mongo_db}?authSource=admin"
+                        )
+                        cls._client = MongoClient(connection_string)
+                    else:
+                        # No authentication
+                        cls._client = MongoClient(mongo_url, mongo_port)
+                else:
+                    # Staging/Production with TLS and authentication
                     connection_string = (
-                        f"mongodb://{mongo_username}:{mongo_password}@{mongo_url}:{mongo_port}/"
-                        f"{mongo_db}?authSource=admin"
+                        f"mongodb://{encoded_username}:{encoded_password}@{mongo_url}:{mongo_port}/"
+                        f"{mongo_db}?tls=true&retryWrites=false&authSource=admin"
                     )
                     cls._client = MongoClient(connection_string)
-                else:
-                    # No authentication
-                    cls._client = MongoClient(mongo_url, mongo_port)
-            else:
-                # Production with TLS and authentication
-                connection_string = (
-                    f"mongodb://{mongo_username}:{mongo_password}@{mongo_url}:{mongo_port}/"
-                    f"{mongo_db}?tls=true&tlsAllowInvalidCertificates=true&retryWrites=false"
-                    f"&authSource={mongo_db}&authMechanism=SCRAM-SHA-1"
-                )
-                cls._client = MongoClient(connection_string)
+            except Exception as e:
+                raise Exception(f"Failed to connect to MongoDB: {str(e)}")
 
         return cls._client
 
@@ -113,12 +120,15 @@ class MongoDBConnection:
         Returns:
             Database instance
         """
-        if cls._database is None or db_name:
-            client = cls.get_client()
-            db_name = db_name or os.environ.get("MONGO_DB", "pagesuccess")
-            cls._database = client[db_name]
+        try:
+            if cls._database is None or db_name:
+                client = cls.get_client()
+                db_name = db_name or os.environ.get("MONGO_DB", "pagesuccess")
+                cls._database = client[db_name]
 
-        return cls._database
+            return cls._database
+        except Exception as e:
+            raise Exception(f"Failed to get database instance: {str(e)}")
 
     @classmethod
     def close(cls):
