@@ -1,12 +1,57 @@
 """
 MongoDB connection utilities for Lambda functions.
 Provides singleton connection pooling for efficient database operations.
+Fetches credentials securely from SSM Parameter Store.
 """
 
 import os
+import boto3
 from typing import Optional
 from pymongo import MongoClient
 from pymongo.database import Database
+
+
+def get_mongo_credentials():
+    """
+    Fetch MongoDB credentials securely.
+    In production: fetch from SSM Parameter Store
+    In local: read from environment variables
+
+    Returns:
+        tuple: (username, password)
+    """
+    environment = os.environ.get("ENVIRONMENT", "production")
+
+    if environment == "local":
+        username = os.environ.get("MONGO_USERNAME", "")
+        password = os.environ.get("MONGO_PASSWORD", "")
+    else:
+        # Get SSM parameter ARNs from environment
+        username_param = os.environ.get("MONGO_USERNAME_PARAM", "")
+        password_param = os.environ.get("MONGO_PASSWORD_PARAM", "")
+
+        # Extract parameter name from ARN if needed
+        if username_param.startswith("arn:"):
+            username_param = username_param.split("parameter/")[-1]
+        if password_param.startswith("arn:"):
+            password_param = password_param.split("parameter/")[-1]
+
+        # Fetch from SSM
+        ssm = boto3.client("ssm")
+        try:
+            username_response = ssm.get_parameter(
+                Name=username_param, WithDecryption=True
+            )
+            username = username_response["Parameter"]["Value"]
+
+            password_response = ssm.get_parameter(
+                Name=password_param, WithDecryption=True
+            )
+            password = password_response["Parameter"]["Value"]
+        except Exception as e:
+            raise Exception(f"Failed to fetch credentials from SSM: {str(e)}")
+
+    return username, password
 
 
 class MongoDBConnection:
@@ -30,9 +75,10 @@ class MongoDBConnection:
             mongo_url = os.environ.get("MONGO_URL", "")
             mongo_port = int(os.environ.get("MONGO_PORT", "27017"))
             mongo_db = os.environ.get("MONGO_DB", "pagesuccess")
-            mongo_username = os.environ.get("MONGO_USERNAME", "")
-            mongo_password = os.environ.get("MONGO_PASSWORD", "")
             environment = os.environ.get("ENVIRONMENT", "production")
+
+            # Fetch credentials securely
+            mongo_username, mongo_password = get_mongo_credentials()
 
             if environment == "local":
                 # Local development - use authentication if credentials provided

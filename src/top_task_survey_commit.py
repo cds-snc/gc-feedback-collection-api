@@ -50,8 +50,58 @@ else:
 MONGO_URL = os.environ.get("MONGO_URL", "")
 MONGO_PORT = int(os.environ.get("MONGO_PORT", "27017"))
 MONGO_DB = os.environ.get("MONGO_DB", "pagesuccess")
-MONGO_USERNAME = os.environ.get("MONGO_USERNAME", "")
-MONGO_PASSWORD = os.environ.get("MONGO_PASSWORD", "")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "production")
+
+# SSM parameter names for credentials (ARNs passed as env vars, we extract the name)
+MONGO_USERNAME_PARAM = os.environ.get("MONGO_USERNAME_PARAM", "")
+MONGO_PASSWORD_PARAM = os.environ.get("MONGO_PASSWORD_PARAM", "")
+
+# Initialize SSM client for production
+if ENVIRONMENT != "local":
+    ssm = boto3.client("ssm")
+else:
+    ssm = None
+
+
+def get_mongo_credentials():
+    """
+    Fetch MongoDB credentials securely.
+    In production: fetch from SSM Parameter Store
+    In local: read from environment variables
+
+    Returns:
+        tuple: (username, password)
+    """
+    if ENVIRONMENT == "local":
+        username = os.environ.get("MONGO_USERNAME", "")
+        password = os.environ.get("MONGO_PASSWORD", "")
+    else:
+        # Extract parameter name from ARN if needed
+        username_param = MONGO_USERNAME_PARAM
+        password_param = MONGO_PASSWORD_PARAM
+
+        # If full ARN provided, extract just the parameter name
+        if username_param.startswith("arn:"):
+            username_param = username_param.split("parameter/")[-1]
+        if password_param.startswith("arn:"):
+            password_param = password_param.split("parameter/")[-1]
+
+        try:
+            username_response = ssm.get_parameter(
+                Name=username_param, WithDecryption=True
+            )
+            username = username_response["Parameter"]["Value"]
+
+            password_response = ssm.get_parameter(
+                Name=password_param, WithDecryption=True
+            )
+            password = password_response["Parameter"]["Value"]
+        except Exception as e:
+            logger.error(f"Failed to fetch credentials from SSM: {str(e)}")
+            raise
+
+    return username, password
+
 
 # Processing configuration
 TIMES_TO_LOOP = 100
@@ -60,15 +110,19 @@ TIMES_TO_LOOP = 100
 def init_mongo_client() -> MongoClient:
     """
     Initialize MongoDB client with proper authentication.
+    Fetches credentials securely from SSM in production.
 
     Returns:
         Configured MongoClient instance
     """
+    # Fetch credentials securely
+    mongo_username, mongo_password = get_mongo_credentials()
+
     if ENVIRONMENT == "local":
         # Local development - use authentication if credentials provided
-        if MONGO_USERNAME and MONGO_PASSWORD:
+        if mongo_username and mongo_password:
             connection_string = (
-                f"mongodb://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_URL}:{MONGO_PORT}/"
+                f"mongodb://{mongo_username}:{mongo_password}@{MONGO_URL}:{MONGO_PORT}/"
                 f"{MONGO_DB}?authSource=admin"
             )
             client = MongoClient(connection_string)
@@ -77,7 +131,7 @@ def init_mongo_client() -> MongoClient:
             client = MongoClient(MONGO_URL, MONGO_PORT)
     else:
         # Production with TLS and authentication
-        connection_string = f"mongodb://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_URL}:{MONGO_PORT}/{MONGO_DB}?tls=true&tlsAllowInvalidCertificates=true&retryWrites=false&authSource={MONGO_DB}&authMechanism=SCRAM-SHA-1"
+        connection_string = f"mongodb://{mongo_username}:{mongo_password}@{MONGO_URL}:{MONGO_PORT}/{MONGO_DB}?tls=true&tlsAllowInvalidCertificates=true&retryWrites=false&authSource={MONGO_DB}&authMechanism=SCRAM-SHA-1"
         client = MongoClient(connection_string)
 
     return client
