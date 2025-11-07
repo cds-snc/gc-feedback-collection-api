@@ -83,10 +83,10 @@ def parse_ses_email(sns_message: Dict[str, Any]) -> Optional[str]:
         # SES sends raw email content
         if "content" in sns_message:
             raw_email = sns_message["content"]
-            
+
             # Parse the MIME message
             msg = email.message_from_string(raw_email)
-            
+
             # Extract text/html content
             if msg.is_multipart():
                 for part in msg.walk():
@@ -94,17 +94,17 @@ def parse_ses_email(sns_message: Dict[str, Any]) -> Optional[str]:
                     if content_type == "text/html":
                         payload = part.get_payload(decode=True)
                         if payload:
-                            return payload.decode('utf-8', errors='ignore')
+                            return payload.decode("utf-8", errors="ignore")
             else:
                 # Not multipart - check if it's HTML
                 if msg.get_content_type() == "text/html":
                     payload = msg.get_payload(decode=True)
                     if payload:
-                        return payload.decode('utf-8', errors='ignore')
-        
+                        return payload.decode("utf-8", errors="ignore")
+
         logger.warning("No HTML content found in SNS message")
         return None
-        
+
     except Exception as e:
         logger.error(f"Error parsing email: {str(e)}", exc_info=True)
         return None
@@ -143,7 +143,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
                     # Extract HTML content from email
                     html_text = parse_ses_email(sns_message)
-                    
+
                     if html_text:
                         break
         else:
@@ -154,6 +154,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = event.get("body", "")
             if event.get("isBase64Encoded", False):
                 import base64
+
                 body = base64.b64decode(body).decode("utf-8")
 
             html_text = body
@@ -164,9 +165,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             # Send to SQS queue
             try:
                 response = sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=html_text)
-                logger.info(f"Data queued successfully. MessageId: {response['MessageId']}")
+                logger.info(
+                    f"Data queued successfully. MessageId: {response['MessageId']}"
+                )
             except Exception as sqs_error:
-                logger.error(f"Failed to send message to SQS: {str(sqs_error)}", exc_info=True)
+                logger.error(
+                    f"Failed to send message to SQS: {str(sqs_error)}", exc_info=True
+                )
                 raise
         else:
             logger.warning("No content to queue")
