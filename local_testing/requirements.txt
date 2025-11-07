@@ -1,0 +1,7 @@
+# AWS Lambda Python Dependencies for Feedback Collection API
+
+# AWS SDK for Python - SQS, S3, etc.
+boto3>=1.34.0
+
+# MongoDB driver for database operations
+pymongo>=4.6.0

@@ -1,0 +1,23 @@
+version = 0.1
+
+[default]
+[default.local_start_api]
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+docker_network = "gc-feedback-network"
+parameter_overrides = "MongoUrl=host.docker.internal MongoPort=27017 MongoDb=pagesuccess MongoUsername=admin MongoPassword=password"
+skip_pull_image = true
+port = 3000
+
+[default.local_invoke]
+[default.local_invoke.parameters]
+docker_network = "gc-feedback-network"
+parameter_overrides = "MongoUrl=host.docker.internal MongoPort=27017 MongoDb=pagesuccess MongoUsername=admin MongoPassword=password"
+
+[default.build]
+[default.build.parameters]
+use_container = true
+
+[default.validate]
+[default.validate.parameters]
+lint = true
