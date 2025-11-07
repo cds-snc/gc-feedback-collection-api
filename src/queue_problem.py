@@ -57,10 +57,10 @@ def extract_email_text(sns_message: Dict[str, Any]) -> Optional[str]:
         # SES sends raw email content
         if "content" in sns_message:
             raw_email = sns_message["content"]
-            
+
             # Parse the MIME message
             msg = email.message_from_string(raw_email)
-            
+
             # Extract text/plain content
             if msg.is_multipart():
                 for part in msg.walk():
@@ -68,16 +68,16 @@ def extract_email_text(sns_message: Dict[str, Any]) -> Optional[str]:
                     if content_type == "text/plain":
                         payload = part.get_payload(decode=True)
                         if payload:
-                            return payload.decode('utf-8', errors='ignore')
+                            return payload.decode("utf-8", errors="ignore")
             else:
                 # Not multipart - get payload directly
                 payload = msg.get_payload(decode=True)
                 if payload:
-                    return payload.decode('utf-8', errors='ignore')
-        
+                    return payload.decode("utf-8", errors="ignore")
+
         logger.warning("No email content found in SNS message")
         return None
-        
+
     except Exception as e:
         logger.error(f"Error extracting email text: {str(e)}", exc_info=True)
         return None
@@ -131,7 +131,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
                     # Extract text content from email
                     text = extract_email_text(sns_message)
-                    
+
                     if text:
                         break
         else:
@@ -142,6 +142,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = event.get("body", "")
             if event.get("isBase64Encoded", False):
                 import base64
+
                 body = base64.b64decode(body).decode("utf-8")
 
             text = body
@@ -155,9 +156,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             # Send to SQS queue
             try:
                 response = sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=text)
-                logger.info(f"Data queued successfully. MessageId: {response['MessageId']}")
+                logger.info(
+                    f"Data queued successfully. MessageId: {response['MessageId']}"
+                )
             except Exception as sqs_error:
-                logger.error(f"Failed to send message to SQS: {str(sqs_error)}", exc_info=True)
+                logger.error(
+                    f"Failed to send message to SQS: {str(sqs_error)}", exc_info=True
+                )
                 raise
         else:
             logger.warning("No content to queue")
