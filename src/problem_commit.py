@@ -15,10 +15,10 @@ import base64
 import boto3
 from datetime import datetime
 from typing import Dict, Any, Optional
-from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from html import unescape
 from models import Problem, OriginalProblem
+from db_utils import MongoDBConnection
 
 # Configure logging
 logger = logging.getLogger()
@@ -27,8 +27,6 @@ logger.setLevel(logging.INFO)
 # Initialize AWS clients
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "production")
 QUEUE_URL = os.environ.get("PROBLEM_QUEUE_URL", "")
-
-# Configure SQS client with local endpoint for local development
 if ENVIRONMENT == "local":
     # Extract endpoint from QUEUE_URL for local testing
     import re
@@ -45,63 +43,6 @@ if ENVIRONMENT == "local":
     )
 else:
     sqs = boto3.client("sqs")
-
-# MongoDB configuration
-MONGO_URL = os.environ.get("MONGO_URL", "")
-MONGO_PORT = int(os.environ.get("MONGO_PORT", "27017"))
-MONGO_DB = os.environ.get("MONGO_DB", "pagesuccess")
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "production")
-
-# SSM parameter names for credentials (ARNs passed as env vars, we extract the name)
-MONGO_USERNAME_PARAM = os.environ.get("MONGO_USERNAME_PARAM", "")
-MONGO_PASSWORD_PARAM = os.environ.get("MONGO_PASSWORD_PARAM", "")
-
-# Initialize SSM client for production
-if ENVIRONMENT != "local":
-    ssm = boto3.client("ssm")
-else:
-    ssm = None
-
-
-def get_mongo_credentials():
-    """
-    Fetch MongoDB credentials securely.
-    In production: fetch from SSM Parameter Store
-    In local: read from environment variables
-
-    Returns:
-        tuple: (username, password)
-    """
-    if ENVIRONMENT == "local":
-        username = os.environ.get("MONGO_USERNAME", "")
-        password = os.environ.get("MONGO_PASSWORD", "")
-    else:
-        # Extract parameter name from ARN if needed
-        username_param = MONGO_USERNAME_PARAM
-        password_param = MONGO_PASSWORD_PARAM
-
-        # If full ARN provided, extract just the parameter name
-        if username_param.startswith("arn:"):
-            username_param = username_param.split("parameter/")[-1]
-        if password_param.startswith("arn:"):
-            password_param = password_param.split("parameter/")[-1]
-
-        try:
-            username_response = ssm.get_parameter(
-                Name=username_param, WithDecryption=True
-            )
-            username = username_response["Parameter"]["Value"]
-
-            password_response = ssm.get_parameter(
-                Name=password_param, WithDecryption=True
-            )
-            password = password_response["Parameter"]["Value"]
-        except Exception as e:
-            logger.error(f"Failed to fetch credentials from SSM: {str(e)}")
-            raise
-
-    return username, password
-
 
 # Processing configuration
 TIMES_TO_LOOP = 100
@@ -139,36 +80,6 @@ class WidgetEmailVersionEnum:
     YESNO = 6
     PROBLEM = 7
     PROBLEM_DETAILS = 8
-
-
-def init_mongo_client() -> MongoClient:
-    """
-    Initialize MongoDB client with proper authentication.
-    Fetches credentials securely from SSM in production.
-
-    Returns:
-        Configured MongoClient instance
-    """
-    # Fetch credentials securely
-    mongo_username, mongo_password = get_mongo_credentials()
-
-    if ENVIRONMENT == "local":
-        # Local development - use authentication if credentials provided
-        if mongo_username and mongo_password:
-            connection_string = (
-                f"mongodb://{mongo_username}:{mongo_password}@{MONGO_URL}:{MONGO_PORT}/"
-                f"{MONGO_DB}?authSource=admin"
-            )
-            client = MongoClient(connection_string)
-        else:
-            # No authentication
-            client = MongoClient(MONGO_URL, MONGO_PORT)
-    else:
-        # Production with TLS and authentication
-        connection_string = f"mongodb://{mongo_username}:{mongo_password}@{MONGO_URL}:{MONGO_PORT}/{MONGO_DB}?tls=true&tlsAllowInvalidCertificates=true&retryWrites=false&authSource={MONGO_DB}&authMechanism=SCRAM-SHA-1"
-        client = MongoClient(connection_string)
-
-    return client
 
 
 def parse_problem_data(problem_data: list, data_length: int) -> Optional[Problem]:
@@ -257,11 +168,10 @@ def process_queue_messages() -> tuple:
     start_time = time.time()
     times_looped = 0
 
-    # Initialize MongoDB client
-    client = init_mongo_client()
-    logger.info("MongoDB client initialized...")
+    # Get MongoDB database using singleton connection
+    database = MongoDBConnection.get_database()
+    logger.info("MongoDB connection initialized...")
 
-    database = client[MONGO_DB]
     problems_collection = database["problem"]
     orig_problems_collection = database["originalproblem"]
 
@@ -337,8 +247,12 @@ def process_queue_messages() -> tuple:
                 except Exception as e:
                     logger.error(f"Error processing message: {str(e)}", exc_info=True)
 
+    except Exception as e:
+        logger.error(f"Error in process_queue_messages: {str(e)}", exc_info=True)
+        raise
     finally:
-        client.close()
+        # Connection is managed by singleton, no need to close here
+        pass
 
     elapsed_time = (time.time() - start_time) * 1000  # Convert to milliseconds
     return times_looped, elapsed_time
