@@ -11,8 +11,9 @@ import json
 import logging
 import os
 import re
+import email
 import boto3
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Configure logging
 logger = logging.getLogger()
@@ -25,8 +26,6 @@ QUEUE_URL = os.environ.get("TOPTASK_QUEUE_URL", "")
 # Configure SQS client with local endpoint for local development
 if ENVIRONMENT == "local":
     # Extract endpoint from QUEUE_URL for local testing
-    import re
-
     match = re.match(r"(https?://[^/]+)", QUEUE_URL)
     endpoint = match.group(1) if match else "http://localhost:9324"
 
@@ -70,22 +69,45 @@ def detect_device_type(user_agent: str) -> str:
     return "Unknown"
 
 
-def parse_ses_email(sns_message: Dict[str, Any]) -> str:
+def parse_ses_email(sns_message: Dict[str, Any]) -> Optional[str]:
     """
-    Parse SES email from SNS notification.
+    Parse SES email from SNS notification and extract HTML content.
 
     Args:
         sns_message: SNS message containing SES email data
 
     Returns:
-        Email HTML content
+        HTML content from email body, or None if not found
     """
-    # Extract email content from SES message
-    if "content" in sns_message:
-        return sns_message["content"]
-    elif "mail" in sns_message:
-        return str(sns_message)
-    return ""
+    try:
+        # SES sends raw email content
+        if "content" in sns_message:
+            raw_email = sns_message["content"]
+            
+            # Parse the MIME message
+            msg = email.message_from_string(raw_email)
+            
+            # Extract text/html content
+            if msg.is_multipart():
+                for part in msg.walk():
+                    content_type = part.get_content_type()
+                    if content_type == "text/html":
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            return payload.decode('utf-8', errors='ignore')
+            else:
+                # Not multipart - check if it's HTML
+                if msg.get_content_type() == "text/html":
+                    payload = msg.get_payload(decode=True)
+                    if payload:
+                        return payload.decode('utf-8', errors='ignore')
+        
+        logger.warning("No HTML content found in SNS message")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error parsing email: {str(e)}", exc_info=True)
+        return None
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -101,6 +123,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         Success response
     """
     try:
+        # Extract User-Agent header for device detection
+        headers = event.get("headers", {})
+        user_agent = headers.get("User-Agent", "") or headers.get("user-agent", "")
+        device_type = detect_device_type(user_agent)
+        logger.info(f"Device Type: {device_type}")
+
         html_text = None
 
         # Check if this is an SNS event (production) or direct POST (testing)
@@ -111,10 +139,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             for record in event.get("Records", []):
                 if record.get("EventSource") == "aws:sns":
                     sns_message = json.loads(record["Sns"]["Message"])
-                    logger.info("Email parsed from SES.")
+                    logger.info("Email parsed from SNS.")
 
-                    # Extract email content
+                    # Extract HTML content from email
                     html_text = parse_ses_email(sns_message)
+                    
+                    if html_text:
+                        break
         else:
             # Direct POST request (local testing)
             logger.info("Direct POST request received (local testing).")
@@ -123,23 +154,20 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = event.get("body", "")
             if event.get("isBase64Encoded", False):
                 import base64
-
                 body = base64.b64decode(body).decode("utf-8")
 
             html_text = body
 
         if html_text:
-            # Replace semicolons with "; " to preserve data structure (if not using delimiter)
-            # Note: Don't replace if already using ~!~ delimiter
-            if "~!~" not in html_text:
-                html_text = html_text.replace(";", "; ")
-
             logger.info(f"TopTask Queue Item: {html_text}")
 
             # Send to SQS queue
-            response = sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=html_text)
-
-            logger.info(f"Data queued successfully. MessageId: {response['MessageId']}")
+            try:
+                response = sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=html_text)
+                logger.info(f"Data queued successfully. MessageId: {response['MessageId']}")
+            except Exception as sqs_error:
+                logger.error(f"Failed to send message to SQS: {str(sqs_error)}", exc_info=True)
+                raise
         else:
             logger.warning("No content to queue")
 
