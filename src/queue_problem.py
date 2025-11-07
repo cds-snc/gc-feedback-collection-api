@@ -10,8 +10,9 @@ Output: SQS Queue message
 import json
 import logging
 import os
+import email
 import boto3
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Configure logging
 logger = logging.getLogger()
@@ -41,24 +42,45 @@ else:
     sqs = boto3.client("sqs")
 
 
-def parse_ses_email(sns_message: Dict[str, Any]) -> str:
+def extract_email_text(sns_message: Dict[str, Any]) -> Optional[str]:
     """
-    Parse SES email from SNS notification.
+    Extract text content from SES email delivered via SNS.
+    SES sends the raw MIME email in the 'content' field.
 
     Args:
         sns_message: SNS message containing SES email data
 
     Returns:
-        Email content text
+        Plain text content from email body, or None if not found
     """
-    # SES via SNS sends email content in 'content' field
-    # Or in mail object depending on receipt rule configuration
-    if "content" in sns_message:
-        return sns_message["content"]
-    elif "mail" in sns_message:
-        # Extract from mail object
-        return sns_message.get("mail", {}).get("commonHeaders", {}).get("subject", "")
-    return ""
+    try:
+        # SES sends raw email content
+        if "content" in sns_message:
+            raw_email = sns_message["content"]
+            
+            # Parse the MIME message
+            msg = email.message_from_string(raw_email)
+            
+            # Extract text/plain content
+            if msg.is_multipart():
+                for part in msg.walk():
+                    content_type = part.get_content_type()
+                    if content_type == "text/plain":
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            return payload.decode('utf-8', errors='ignore')
+            else:
+                # Not multipart - get payload directly
+                payload = msg.get_payload(decode=True)
+                if payload:
+                    return payload.decode('utf-8', errors='ignore')
+        
+        logger.warning("No email content found in SNS message")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error extracting email text: {str(e)}", exc_info=True)
+        return None
 
 
 def sanitize_text(text: str) -> str:
@@ -105,15 +127,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             for record in event.get("Records", []):
                 if record.get("EventSource") == "aws:sns":
                     sns_message = json.loads(record["Sns"]["Message"])
-                    logger.info("Email parsed from SES.")
+                    logger.info("Email parsed from SNS.")
 
-                    # Extract email content from SES message
-                    if "content" in sns_message:
-                        text = sns_message["content"]
-                    elif (
-                        "mail" in sns_message and "commonHeaders" in sns_message["mail"]
-                    ):
-                        text = str(sns_message)
+                    # Extract text content from email
+                    text = extract_email_text(sns_message)
+                    
+                    if text:
+                        break
         else:
             # Direct POST request (local testing)
             logger.info("Direct POST request received (local testing).")
@@ -122,21 +142,23 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = event.get("body", "")
             if event.get("isBase64Encoded", False):
                 import base64
-
                 body = base64.b64decode(body).decode("utf-8")
 
             text = body
 
         if text:
-            # Sanitize the text
+            # Sanitize the text: replace semicolons after the 8th occurrence
             text = sanitize_text(text)
 
             logger.info(f"Problem Queue Item: {text}")
 
             # Send to SQS queue
-            response = sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=text)
-
-            logger.info(f"Data queued successfully. MessageId: {response['MessageId']}")
+            try:
+                response = sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=text)
+                logger.info(f"Data queued successfully. MessageId: {response['MessageId']}")
+            except Exception as sqs_error:
+                logger.error(f"Failed to send message to SQS: {str(sqs_error)}", exc_info=True)
+                raise
         else:
             logger.warning("No content to queue")
 
