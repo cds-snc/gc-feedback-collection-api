@@ -11,7 +11,7 @@ from datetime import datetime
 @dataclass
 class Problem:
     """Problem feedback model for MongoDB 'problem' collection."""
-    
+
     time_stamp: str = ""
     problem_date: str = ""
     url: str = ""
@@ -33,7 +33,7 @@ class Problem:
     auto_tag_processed: str = "false"
     data_origin: str = ""
     tags: List[str] = field(default_factory=list)
-    
+
     def to_dict(self):
         """Convert to dictionary for MongoDB insertion."""
         return {
@@ -57,14 +57,14 @@ class Problem:
             "personalInfoProcessed": self.personal_info_processed,
             "autoTagProcessed": self.auto_tag_processed,
             "dataOrigin": self.data_origin,
-            "tags": self.tags
+            "tags": self.tags,
         }
 
 
 @dataclass
 class OriginalProblem:
     """Original problem record for archival purposes."""
-    
+
     time_stamp: str = ""
     problem_date: str = ""
     url: str = ""
@@ -81,7 +81,7 @@ class OriginalProblem:
     browser: str = ""
     contact: str = ""
     data_origin: str = ""
-    
+
     @classmethod
     def from_problem(cls, problem: Problem):
         """Create OriginalProblem from Problem instance."""
@@ -101,9 +101,9 @@ class OriginalProblem:
             device_type=problem.device_type,
             browser=problem.browser,
             contact=problem.contact,
-            data_origin=problem.data_origin
+            data_origin=problem.data_origin,
         )
-    
+
     def to_dict(self):
         """Convert to dictionary for MongoDB insertion."""
         return {
@@ -122,14 +122,14 @@ class OriginalProblem:
             "deviceType": self.device_type,
             "browser": self.browser,
             "contact": self.contact,
-            "dataOrigin": self.data_origin
+            "dataOrigin": self.data_origin,
         }
 
 
 @dataclass
 class TopTask:
     """TopTask survey feedback model for MongoDB 'toptasksurvey' collection."""
-    
+
     date_time: str = ""
     time_stamp: str = ""
     survey_referrer: str = ""
@@ -161,7 +161,7 @@ class TopTask:
     top_task_air_table_sync: str = "false"
     personal_info_processed: str = "false"
     auto_tag_processed: str = "false"
-    
+
     def to_dict(self):
         """Convert to dictionary for MongoDB insertion."""
         return {
@@ -193,7 +193,7 @@ class TopTask:
             "samplingGrouping": self.sampling_grouping,
             "samplingTask": self.sampling_task,
             "processed": self.processed,
-            "topTaskAirTableSynce": self.top_task_air_table_sync,
+            "topTaskAirTableSync": self.top_task_air_table_sync,
             "personalInfoProcessed": self.personal_info_processed,
-            "autoTagProcessed": self.auto_tag_processed
+            "autoTagProcessed": self.auto_tag_processed,
         }
