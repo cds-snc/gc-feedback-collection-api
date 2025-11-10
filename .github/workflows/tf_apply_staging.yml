@@ -1,0 +1,66 @@
+name: "Terraform apply staging"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "terragrunt/**"
+      - "!terragrunt/env/production/**"
+      - ".github/workflows/tf_apply_staging.yml"
+      - "src/**"
+
+env:
+  AWS_REGION: ca-central-1
+  TERRAFORM_VERSION: 1.10.4
+  TERRAGRUNT_VERSION: 0.72.3
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  actions: write
+  checks: write
+  statuses: write
+
+jobs:
+  terragrunt-apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform Tools
+        uses: cds-snc/terraform-tools-setup@v1
+
+      - name: Configure aws credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          role-to-assume: arn:aws:iam::992382783569:role/feedback-collection-api-apply
+          role-session-name: TFApply
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Apply sns
+        working-directory: terragrunt/env/staging/sns
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
+
+      - name: Apply sqs
+        working-directory: terragrunt/env/staging/sqs
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
+
+      - name: Apply iam
+        working-directory: terragrunt/env/staging/iam
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
+
+      - name: Apply lambda
+        working-directory: terragrunt/env/staging/lambda
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
+
+      - name: Apply api_gateway
+        working-directory: terragrunt/env/staging/api_gateway
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
+
+      - name: Apply ses
+        working-directory: terragrunt/env/staging/ses
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
