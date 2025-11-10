@@ -27,6 +27,16 @@ wheels/
 # Virtual environments
 venv/
 
+# Terragrunt and Terraform
+.terragrunt-cache
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+*.terraform.lock.hcl
+
+# Ignored Terraform files
+*gitignore*.tf
+
 
 # IDE
 .vscode/
