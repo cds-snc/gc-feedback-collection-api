@@ -86,7 +86,7 @@ resource "aws_api_gateway_integration" "problem_form_lambda" {
   http_method             = aws_api_gateway_method.problem_form_post.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = var.queue_problem_form_lambda_invoke_arn
+  uri                     = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${var.queue_problem_form_lambda_invoke_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "toptask_survey_form_lambda" {
@@ -95,7 +95,7 @@ resource "aws_api_gateway_integration" "toptask_survey_form_lambda" {
   http_method             = aws_api_gateway_method.toptask_survey_form_post.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = var.queue_toptask_survey_form_lambda_invoke_arn
+  uri                     = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${var.queue_toptask_survey_form_lambda_invoke_arn}/invocations"
 }
 
 # CORS configuration for web forms
