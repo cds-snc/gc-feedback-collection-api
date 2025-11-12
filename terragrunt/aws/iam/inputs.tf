@@ -1,4 +1,4 @@
- variable "problem_queue_arn" {
+variable "problem_queue_arn" {
   description = "ARN of the problem queue"
   type        = string
 }

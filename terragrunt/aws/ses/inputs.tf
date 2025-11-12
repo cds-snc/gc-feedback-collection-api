@@ -1,4 +1,4 @@
- variable "ses_domain" {
+variable "ses_domain" {
   description = "Domain for SES email receipt (e.g., feedback.canada.gc.ca)"
   type        = string
   default     = "feedback.canada.gc.ca"

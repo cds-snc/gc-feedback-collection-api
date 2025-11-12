@@ -1,4 +1,4 @@
- variable "problem_queue_url" {
+variable "problem_queue_url" {
   description = "URL of the problem SQS queue"
   type        = string
 }

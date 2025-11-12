@@ -367,7 +367,7 @@ resource "aws_lambda_function" "problem_commit" {
   source_code_hash = data.archive_file.problem_commit.output_base64sha256
   handler          = "problem_commit.lambda_handler"
   runtime          = "python3.11"
-  timeout          = 300  # 5 minutes for batch processing
+  timeout          = 300 # 5 minutes for batch processing
   memory_size      = 512
   role             = aws_iam_role.problem_commit_lambda.arn
 
@@ -478,7 +478,7 @@ resource "aws_lambda_function" "toptask_survey_commit" {
   source_code_hash = data.archive_file.toptask_survey_commit.output_base64sha256
   handler          = "top_task_survey_commit.lambda_handler"
   runtime          = "python3.11"
-  timeout          = 300  # 5 minutes for batch processing
+  timeout          = 300 # 5 minutes for batch processing
   memory_size      = 512
   role             = aws_iam_role.toptask_survey_commit_lambda.arn
 

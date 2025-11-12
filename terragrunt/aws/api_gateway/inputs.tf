@@ -1,4 +1,4 @@
- variable "queue_problem_form_lambda_invoke_arn" {
+variable "queue_problem_form_lambda_invoke_arn" {
   description = "Invoke ARN of the queue_problem_form Lambda function"
   type        = string
 }
