@@ -10,6 +10,12 @@ dependency "sqs" {
   config_path                             = "../sqs"
   mock_outputs_allowed_terraform_commands = ["init", "fmt", "validate", "plan", "show"]
   mock_outputs_merge_with_state           = true
+  mock_outputs = {
+    problem_queue_url = "https://sqs.ca-central-1.amazonaws.com/123456789012/mock-problem-queue"
+    problem_queue_arn = "arn:aws:sqs:ca-central-1:123456789012:mock-problem-queue"
+    toptask_queue_url = "https://sqs.ca-central-1.amazonaws.com/123456789012/mock-toptask-queue"
+    toptask_queue_arn = "arn:aws:sqs:ca-central-1:123456789012:mock-toptask-queue"
+  }
 }
 
 dependency "sns" {
@@ -17,8 +23,8 @@ dependency "sns" {
   mock_outputs_allowed_terraform_commands = ["init", "fmt", "validate", "plan", "show"]
   mock_outputs_merge_with_state           = true
   mock_outputs = {
-    problem_topic_arn = ""
-    toptask_topic_arn = ""
+    problem_topic_arn = "arn:aws:sns:ca-central-1:123456789012:mock-problem-topic"
+    toptask_topic_arn = "arn:aws:sns:ca-central-1:123456789012:mock-toptask-topic"
   }
 }
 
@@ -27,9 +33,9 @@ dependency "iam" {
   mock_outputs_allowed_terraform_commands = ["init", "fmt", "validate", "plan", "show"]
   mock_outputs_merge_with_state           = true
   mock_outputs = {
-    lambda_sqs_policy_arn         = ""
-    lambda_sqs_receive_policy_arn = ""
-    lambda_ssm_policy_arn         = ""
+    lambda_sqs_policy_arn         = "arn:aws:iam::123456789012:policy/mock-lambda-sqs-policy"
+    lambda_sqs_receive_policy_arn = "arn:aws:iam::123456789012:policy/mock-lambda-sqs-receive-policy"
+    lambda_ssm_policy_arn         = "arn:aws:iam::123456789012:policy/mock-lambda-ssm-policy"
   }
 }
 
