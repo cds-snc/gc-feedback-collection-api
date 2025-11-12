@@ -37,7 +37,7 @@ jobs:
       - name: Configure aws credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
-          role-to-assume: arn:aws:iam::992382783569:role/feedback-collection-api-apply
+          role-to-assume: arn:aws:iam::992382783569:role/gc-feedback-collection-api-apply
           role-session-name: TFApply
           aws-region: ${{ env.AWS_REGION }}
 
