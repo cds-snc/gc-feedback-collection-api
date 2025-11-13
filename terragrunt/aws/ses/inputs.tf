@@ -1,7 +1,7 @@
 variable "ses_domain" {
-  description = "Domain for SES email receipt (e.g., feedback.canada.gc.ca)"
+  description = "Domain for SES email receipt (e.g., alpha.canada.ca)"
   type        = string
-  default     = "feedback.canada.gc.ca"
+  default     = "alpha.canada.ca"
 }
 
 variable "problem_sns_topic_arn" {

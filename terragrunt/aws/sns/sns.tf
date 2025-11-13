@@ -1,6 +1,3 @@
-# SNS Topics for email routing to Lambda functions using CDS terraform-modules
-
-# Problem feedback SNS topic (receives from SES)
 module "sns_problem_topic" {
   source = "github.com/cds-snc/terraform-modules//sns?ref=v10.8.5"
 
@@ -19,7 +16,3 @@ module "sns_toptask_topic" {
   billing_tag_value = var.billing_code
   kms_event_sources = ["ses.amazonaws.com"]
 }
-
-# Note: SNS to SQS subscriptions are created by the SQS module (sqs.tf)
-# Note: Lambda subscriptions are handled automatically by the CDS Lambda module
-# via the sns_topic_arns parameter in lambda.tf

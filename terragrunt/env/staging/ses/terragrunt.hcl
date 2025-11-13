@@ -20,7 +20,7 @@ inputs = {
   account_id            = local.vars.inputs.account_id
   problem_sns_topic_arn = dependency.sns.outputs.problem_topic_arn
   toptask_sns_topic_arn = dependency.sns.outputs.toptask_topic_arn
-  ses_domain            = "feedback.canada.gc.ca"
+  ses_domain            = "alpha.canada.ca"
 }
 
 include {

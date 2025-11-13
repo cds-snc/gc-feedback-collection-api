@@ -10,7 +10,6 @@ resource "aws_ses_active_receipt_rule_set" "feedback_ruleset" {
   rule_set_name = aws_ses_receipt_rule_set.feedback_ruleset.rule_set_name
 }
 
-# Receipt rule for problems@feedback.canada.gc.ca → SNS → Lambda
 resource "aws_ses_receipt_rule" "problem_email" {
   name          = "${var.product_name}-problem-email-rule"
   rule_set_name = aws_ses_receipt_rule_set.feedback_ruleset.rule_set_name
@@ -26,7 +25,6 @@ resource "aws_ses_receipt_rule" "problem_email" {
   depends_on = [aws_ses_receipt_rule_set.feedback_ruleset]
 }
 
-# Receipt rule for surveys@feedback.canada.gc.ca → SNS → Lambda
 resource "aws_ses_receipt_rule" "toptask_email" {
   name          = "${var.product_name}-toptask-email-rule"
   rule_set_name = aws_ses_receipt_rule_set.feedback_ruleset.rule_set_name
