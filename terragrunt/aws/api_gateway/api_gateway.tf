@@ -21,12 +21,6 @@ resource "aws_api_gateway_resource" "problem" {
   path_part   = "problem"
 }
 
-# /problem/email resource
-resource "aws_api_gateway_resource" "problem_email" {
-  rest_api_id = aws_api_gateway_rest_api.feedback_api.id
-  parent_id   = aws_api_gateway_resource.problem.id
-  path_part   = "email"
-}
 
 # /problem/form resource
 resource "aws_api_gateway_resource" "problem_form" {
@@ -42,12 +36,6 @@ resource "aws_api_gateway_resource" "toptask" {
   path_part   = "toptask"
 }
 
-# /toptask/email resource
-resource "aws_api_gateway_resource" "toptask_email" {
-  rest_api_id = aws_api_gateway_rest_api.feedback_api.id
-  parent_id   = aws_api_gateway_resource.toptask.id
-  path_part   = "email"
-}
 
 # /toptask/survey resource
 resource "aws_api_gateway_resource" "toptask_survey" {
@@ -86,7 +74,7 @@ resource "aws_api_gateway_integration" "problem_form_lambda" {
   http_method             = aws_api_gateway_method.problem_form_post.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${var.queue_problem_form_lambda_invoke_arn}/invocations"
+  uri                     = var.queue_problem_form_lambda_invoke_arn
 }
 
 resource "aws_api_gateway_integration" "toptask_survey_form_lambda" {
@@ -95,7 +83,7 @@ resource "aws_api_gateway_integration" "toptask_survey_form_lambda" {
   http_method             = aws_api_gateway_method.toptask_survey_form_post.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${var.queue_toptask_survey_form_lambda_invoke_arn}/invocations"
+  uri                     = var.queue_toptask_survey_form_lambda_invoke_arn
 }
 
 # CORS configuration for web forms
