@@ -32,18 +32,96 @@ data "archive_file" "queue_toptask_survey_form" {
   excludes    = ["__pycache__", "*.pyc", ".pytest_cache", "tests"]
 }
 
-data "archive_file" "problem_commit" {
-  type        = "zip"
-  source_dir  = var.lambda_source_code_path
-  output_path = "${path.module}/.terraform/lambda-problem-commit.zip"
-  excludes    = ["__pycache__", "*.pyc", ".pytest_cache", "tests"]
+# Build problem_commit Lambda with dependencies
+resource "null_resource" "problem_commit_build" {
+  triggers = {
+    source_hash = sha256(join("", [
+      for f in fileset(var.lambda_source_code_path, "**") :
+      filesha256("${var.lambda_source_code_path}/${f}")
+    ]))
+    requirements_hash = filesha256("${var.lambda_source_code_path}/requirements.txt")
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      PACKAGE_DIR="${path.module}/.terraform/builds/problem-commit"
+      ZIP_FILE="${path.module}/.terraform/lambda-problem-commit.zip"
+
+      # Clean up previous builds
+      rm -rf "$PACKAGE_DIR"
+      rm -f "$ZIP_FILE"
+      mkdir -p "$PACKAGE_DIR"
+
+      # Install dependencies to package directory (at root level)
+      # Explicitly request CPython 3.11 manylinux wheels for x86_64
+      pip install -r ${var.lambda_source_code_path}/requirements.txt \
+        --target "$PACKAGE_DIR" \
+        --upgrade \
+        --platform manylinux2014_x86_64 \
+        --implementation cp \
+        --python-version 3.11 \
+        --only-binary=:all:
+
+      # Copy source files (recursive) so packages and data files are included
+      # Exclude caches, tests and pyc files
+      rsync -a ${var.lambda_source_code_path}/ "$PACKAGE_DIR/" --exclude="__pycache__" --exclude="*.pyc" --exclude=".pytest_cache" --exclude="tests"
+
+      # Ensure reasonable permissions for Lambda
+      find "$PACKAGE_DIR" -type f -exec chmod 644 {} +
+      find "$PACKAGE_DIR" -type d -exec chmod 755 {} +
+
+      # Create ZIP with everything at root
+      cd "$PACKAGE_DIR"
+      zip -r "$ZIP_FILE" . -x "__pycache__/*" "*.pyc"
+    EOT
+  }
 }
 
-data "archive_file" "toptask_survey_commit" {
-  type        = "zip"
-  source_dir  = var.lambda_source_code_path
-  output_path = "${path.module}/.terraform/lambda-toptask-survey-commit.zip"
-  excludes    = ["__pycache__", "*.pyc", ".pytest_cache", "tests"]
+# Build toptask_survey_commit Lambda with dependencies
+resource "null_resource" "toptask_survey_commit_build" {
+  triggers = {
+    source_hash = sha256(join("", [
+      for f in fileset(var.lambda_source_code_path, "**") :
+      filesha256("${var.lambda_source_code_path}/${f}")
+    ]))
+    requirements_hash = filesha256("${var.lambda_source_code_path}/requirements.txt")
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      PACKAGE_DIR="${path.module}/.terraform/builds/toptask-survey-commit"
+      ZIP_FILE="${path.module}/.terraform/lambda-toptask-survey-commit.zip"
+
+      # Clean up previous builds
+      rm -rf "$PACKAGE_DIR"
+      rm -f "$ZIP_FILE"
+      mkdir -p "$PACKAGE_DIR"
+
+      # Install dependencies to package directory (at root level)
+      # Explicitly request CPython 3.11 manylinux wheels for x86_64
+      pip install -r ${var.lambda_source_code_path}/requirements.txt \
+        --target "$PACKAGE_DIR" \
+        --upgrade \
+        --platform manylinux2014_x86_64 \
+        --implementation cp \
+        --python-version 3.11 \
+        --only-binary=:all:
+
+      # Copy source files (recursive) so packages and data files are included
+      # Exclude caches, tests and pyc files
+      rsync -a ${var.lambda_source_code_path}/ "$PACKAGE_DIR/" --exclude="__pycache__" --exclude="*.pyc" --exclude=".pytest_cache" --exclude="tests"
+
+      # Ensure reasonable permissions for Lambda
+      find "$PACKAGE_DIR" -type f -exec chmod 644 {} +
+      find "$PACKAGE_DIR" -type d -exec chmod 755 {} +
+
+      # Create ZIP with everything at root
+      cd "$PACKAGE_DIR"
+      zip -r "$ZIP_FILE" . -x "__pycache__/*" "*.pyc"
+    EOT
+  }
 }
 
 # Security group for Lambda functions in VPC (shared by all Lambda functions)
@@ -363,8 +441,8 @@ resource "aws_cloudwatch_log_group" "queue_toptask_survey_form" {
 # 5. problem_commit Lambda (EventBridge → SQS → DocumentDB)
 resource "aws_lambda_function" "problem_commit" {
   function_name    = "${var.product_name}-problem-commit"
-  filename         = data.archive_file.problem_commit.output_path
-  source_code_hash = data.archive_file.problem_commit.output_base64sha256
+  filename         = "${path.module}/.terraform/lambda-problem-commit.zip"
+  source_code_hash = null_resource.problem_commit_build.triggers.source_hash
   handler          = "problem_commit.lambda_handler"
   runtime          = "python3.11"
   timeout          = 300 # 5 minutes for batch processing
@@ -392,6 +470,8 @@ resource "aws_lambda_function" "problem_commit" {
     CostCentre = var.billing_code
     Terraform  = true
   }
+
+  depends_on = [null_resource.problem_commit_build]
 }
 
 # IAM role for problem_commit Lambda
@@ -474,8 +554,8 @@ resource "aws_lambda_permission" "problem_commit_eventbridge" {
 # 6. top_task_survey_commit Lambda (EventBridge → SQS → DocumentDB)
 resource "aws_lambda_function" "toptask_survey_commit" {
   function_name    = "${var.product_name}-toptask-survey-commit"
-  filename         = data.archive_file.toptask_survey_commit.output_path
-  source_code_hash = data.archive_file.toptask_survey_commit.output_base64sha256
+  filename         = "${path.module}/.terraform/lambda-toptask-survey-commit.zip"
+  source_code_hash = null_resource.toptask_survey_commit_build.triggers.source_hash
   handler          = "top_task_survey_commit.lambda_handler"
   runtime          = "python3.11"
   timeout          = 300 # 5 minutes for batch processing
@@ -503,6 +583,8 @@ resource "aws_lambda_function" "toptask_survey_commit" {
     CostCentre = var.billing_code
     Terraform  = true
   }
+
+  depends_on = [null_resource.toptask_survey_commit_build]
 }
 
 # IAM role for toptask_survey_commit Lambda
