@@ -442,7 +442,7 @@ resource "aws_cloudwatch_log_group" "queue_toptask_survey_form" {
 resource "aws_lambda_function" "problem_commit" {
   function_name    = "${var.product_name}-problem-commit"
   filename         = "${path.module}/.terraform/lambda-problem-commit.zip"
-  source_code_hash = filebase64sha256("${path.module}/.terraform/lambda-problem-commit.zip")
+  source_code_hash = null_resource.problem_commit_build.triggers.source_hash
   handler          = "problem_commit.lambda_handler"
   runtime          = "python3.11"
   timeout          = 300 # 5 minutes for batch processing
@@ -555,7 +555,7 @@ resource "aws_lambda_permission" "problem_commit_eventbridge" {
 resource "aws_lambda_function" "toptask_survey_commit" {
   function_name    = "${var.product_name}-toptask-survey-commit"
   filename         = "${path.module}/.terraform/lambda-toptask-survey-commit.zip"
-  source_code_hash = filebase64sha256("${path.module}/.terraform/lambda-toptask-survey-commit.zip")
+  source_code_hash = null_resource.toptask_survey_commit_build.triggers.source_hash
   handler          = "top_task_survey_commit.lambda_handler"
   runtime          = "python3.11"
   timeout          = 300 # 5 minutes for batch processing
