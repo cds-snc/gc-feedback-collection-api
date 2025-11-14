@@ -19,8 +19,8 @@ dependency "sqs" {
 inputs = {
   problem_queue_arn                  = dependency.sqs.outputs.problem_queue_arn
   toptask_queue_arn                  = dependency.sqs.outputs.toptask_queue_arn
-  dto_feedback_cj_docdb_username_arn = "arn:aws:ssm:ca-central-1:992382783569:parameter/dto-feedback-cj/documentdb/username"
-  dto_feedback_cj_docdb_password_arn = "arn:aws:ssm:ca-central-1:992382783569:parameter/dto-feedback-cj/documentdb/password"
+  dto_feedback_cj_docdb_username_arn = "arn:aws:ssm:ca-central-1:992382783569:parameter/feedback-cronjob/staging/docdb-username"
+  dto_feedback_cj_docdb_password_arn = "arn:aws:ssm:ca-central-1:992382783569:parameter/feedback-cronjob/staging/docdb-password"
 }
 
 include {
