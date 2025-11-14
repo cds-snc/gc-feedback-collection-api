@@ -7,7 +7,7 @@ data "aws_iam_policy_document" "sns_topic_policy" {
       type        = "AWS"
       identifiers = ["arn:aws:iam::${var.account_id}:root"]
     }
-    actions   = [
+    actions = [
       "SNS:GetTopicAttributes",
       "SNS:SetTopicAttributes",
       "SNS:AddPermission",
