@@ -470,7 +470,7 @@ resource "aws_lambda_function" "problem_commit" {
     CostCentre = var.billing_code
     Terraform  = true
   }
-  
+
   depends_on = [null_resource.problem_commit_build]
 }
 
@@ -583,7 +583,7 @@ resource "aws_lambda_function" "toptask_survey_commit" {
     CostCentre = var.billing_code
     Terraform  = true
   }
-  
+
   depends_on = [null_resource.toptask_survey_commit_build]
 }
 
