@@ -45,8 +45,9 @@ resource "null_resource" "problem_commit_build" {
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      PACKAGE_DIR="${path.module}/.terraform/builds/problem-commit"
-      ZIP_FILE="${path.module}/.terraform/lambda-problem-commit.zip"
+      BUILD_DIR=$(cd "${path.module}" && pwd)
+      PACKAGE_DIR="$BUILD_DIR/.terraform/builds/problem-commit"
+      ZIP_FILE="$BUILD_DIR/.terraform/lambda-problem-commit.zip"
 
       # Clean up previous builds
       rm -rf "$PACKAGE_DIR"
@@ -91,8 +92,9 @@ resource "null_resource" "toptask_survey_commit_build" {
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      PACKAGE_DIR="${path.module}/.terraform/builds/toptask-survey-commit"
-      ZIP_FILE="${path.module}/.terraform/lambda-toptask-survey-commit.zip"
+      BUILD_DIR=$(cd "${path.module}" && pwd)
+      PACKAGE_DIR="$BUILD_DIR/.terraform/builds/toptask-survey-commit"
+      ZIP_FILE="$BUILD_DIR/.terraform/lambda-toptask-survey-commit.zip"
 
       # Clean up previous builds
       rm -rf "$PACKAGE_DIR"

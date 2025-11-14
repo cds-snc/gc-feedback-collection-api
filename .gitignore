@@ -34,6 +34,10 @@ venv/
 *.tfstate.lock.info
 *.terraform.lock.hcl
 
+# Lambda build artifacts
+terragrunt/aws/lambda/.terraform/builds/
+terragrunt/aws/lambda/.terraform/*.zip
+
 # Ignored Terraform files
 *gitignore*.tf
 
