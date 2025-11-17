@@ -33,9 +33,9 @@ def get_mongo_credentials():
 
         # Extract parameter name from ARN if needed
         if username_param.startswith("arn:"):
-            username_param = username_param.split("parameter/")[-1]
+            username_param = "/" + username_param.split("parameter/")[-1]
         if password_param.startswith("arn:"):
-            password_param = password_param.split("parameter/")[-1]
+            password_param = "/" + password_param.split("parameter/")[-1]
 
         # Fetch from SSM
         ssm = boto3.client("ssm")
