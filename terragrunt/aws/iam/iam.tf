@@ -44,6 +44,19 @@ data "aws_iam_policy_document" "lambda_ssm_policy" {
       var.dto_feedback_cj_docdb_password_arn
     ]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.ca-central-1.amazonaws.com"]
+    }
+  }
 }
 
 # IAM Policy: Lambda SQS send permissions
