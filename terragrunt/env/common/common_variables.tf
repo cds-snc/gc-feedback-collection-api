@@ -33,6 +33,11 @@ variable "billing_tag_value" {
   type        = string
 }
 
+variable "domain" {
+  description = "Domain name for the Route53 hosted zone"
+  type        = string
+}
+
 variable "default_tags" {
   description = "The default tags we apply to all resources"
   type        = map(string)
