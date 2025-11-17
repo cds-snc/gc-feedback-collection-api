@@ -30,10 +30,10 @@ jobs:
         include:
           - module: sns
           - module: sqs
-          - module: hosted_zone
           - module: iam
           - module: lambda
           - module: api_gateway
+          - module: hosted_zone
           - module: ses
     runs-on: ubuntu-latest
     steps:
