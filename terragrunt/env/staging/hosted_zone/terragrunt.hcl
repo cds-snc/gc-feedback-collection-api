@@ -15,14 +15,17 @@ dependency "api_gateway" {
   mock_outputs_allowed_terraform_commands = ["init", "fmt", "validate", "plan", "show"]
   mock_outputs_merge_with_state           = true
   mock_outputs = {
-    api_gateway_domain_name        = ""
-    api_gateway_hosted_zone_id     = ""
-    certificate_validation_options = {}
+    api_gateway_id                   = ""
+    api_gateway_stage_name           = ""
+    certificate_arn                  = ""
+    certificate_validation_options   = {}
   }
 }
 
 inputs = {
-  api_gateway_domain_name     = dependency.api_gateway.outputs.api_gateway_domain_name
-  api_gateway_hosted_zone_id  = dependency.api_gateway.outputs.api_gateway_hosted_zone_id
-  api_cert_validation_options = dependency.api_gateway.outputs.certificate_validation_options
+  # domain, billing_code, and region come from root.hcl
+  api_gateway_id                  = dependency.api_gateway.outputs.api_gateway_id
+  api_gateway_stage_name          = dependency.api_gateway.outputs.api_gateway_stage_name
+  certificate_arn                 = dependency.api_gateway.outputs.certificate_arn
+  api_cert_validation_options     = dependency.api_gateway.outputs.certificate_validation_options
 }

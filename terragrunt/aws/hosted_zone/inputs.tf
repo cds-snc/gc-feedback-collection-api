@@ -1,15 +1,3 @@
-variable "api_gateway_domain_name" {
-  description = "Regional domain name from API Gateway custom domain"
-  type        = string
-  default     = ""
-}
-
-variable "api_gateway_hosted_zone_id" {
-  description = "Hosted zone ID from API Gateway custom domain"
-  type        = string
-  default     = ""
-}
-
 variable "api_cert_validation_options" {
   description = "Certificate validation options from API Gateway"
   type = map(object({
@@ -18,4 +6,22 @@ variable "api_cert_validation_options" {
     resource_record_value = string
   }))
   default = {}
+}
+
+variable "certificate_arn" {
+  description = "ARN of the ACM certificate from API Gateway"
+  type        = string
+  default     = ""
+}
+
+variable "api_gateway_id" {
+  description = "ID of the API Gateway REST API"
+  type        = string
+  default     = ""
+}
+
+variable "api_gateway_stage_name" {
+  description = "Name of the API Gateway stage"
+  type        = string
+  default     = ""
 }
