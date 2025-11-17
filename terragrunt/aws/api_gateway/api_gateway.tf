@@ -296,6 +296,7 @@ resource "aws_lambda_permission" "toptask_survey_form_api_gateway" {
 }
 
 # ACM Certificate for custom domain
+# Note: Certificate validation and custom domain creation happens in hosted_zone module
 resource "aws_acm_certificate" "api_domain" {
   domain_name       = var.domain
   validation_method = "DNS"
@@ -308,28 +309,4 @@ resource "aws_acm_certificate" "api_domain" {
   lifecycle {
     create_before_destroy = true
   }
-}
-
-# Custom domain name for API Gateway
-# Note: This will be created immediately but won't work until certificate validates
-# Certificate validation happens automatically after hosted_zone creates the CNAME records
-resource "aws_api_gateway_domain_name" "api_domain" {
-  domain_name              = var.domain
-  regional_certificate_arn = aws_acm_certificate.api_domain.arn
-
-  endpoint_configuration {
-    types = ["REGIONAL"]
-  }
-
-  tags = {
-    CostCentre = var.billing_code
-    Terraform  = true
-  }
-}
-
-# Base path mapping
-resource "aws_api_gateway_base_path_mapping" "api_domain" {
-  api_id      = aws_api_gateway_rest_api.feedback_api.id
-  stage_name  = aws_api_gateway_stage.feedback_api.stage_name
-  domain_name = aws_api_gateway_domain_name.api_domain.domain_name
 }
