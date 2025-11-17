@@ -4,6 +4,7 @@ inputs = {
   cost_center_code = "feedback-collection-api-staging"
   region           = "ca-central-1"
   product_name     = "feedback-collection-api"
+  domain           = "feedback-collection.alpha.canada.ca"
 
   # dto-feedback-cj infrastructure references (must match their staging environment)
   # dto-feedback-cj staging infrastructure (from terragrunt output)

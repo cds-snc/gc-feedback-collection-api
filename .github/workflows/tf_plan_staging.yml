@@ -30,6 +30,7 @@ jobs:
         include:
           - module: sns
           - module: sqs
+          - module: hosted_zone
           - module: iam
           - module: lambda
           - module: api_gateway
