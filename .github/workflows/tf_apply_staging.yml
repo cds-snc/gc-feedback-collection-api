@@ -49,10 +49,6 @@ jobs:
         working-directory: terragrunt/env/staging/sqs
         run: terragrunt apply --terragrunt-non-interactive -auto-approve
 
-      - name: Apply hosted_zone
-        working-directory: terragrunt/env/staging/hosted_zone
-        run: terragrunt apply --terragrunt-non-interactive -auto-approve
-
       - name: Apply iam
         working-directory: terragrunt/env/staging/iam
         run: terragrunt apply --terragrunt-non-interactive -auto-approve
@@ -63,6 +59,10 @@ jobs:
 
       - name: Apply api_gateway
         working-directory: terragrunt/env/staging/api_gateway
+        run: terragrunt apply --terragrunt-non-interactive -auto-approve
+
+      - name: Apply hosted_zone
+        working-directory: terragrunt/env/staging/hosted_zone
         run: terragrunt apply --terragrunt-non-interactive -auto-approve
 
       - name: Apply ses

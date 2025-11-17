@@ -294,3 +294,47 @@ resource "aws_lambda_permission" "toptask_survey_form_api_gateway" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.feedback_api.execution_arn}/*/*"
 }
+
+# ACM Certificate for custom domain
+resource "aws_acm_certificate" "api_domain" {
+  domain_name       = var.domain
+  validation_method = "DNS"
+
+  tags = {
+    CostCentre = var.billing_code
+    Terraform  = true
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Certificate validation
+resource "aws_acm_certificate_validation" "api_domain" {
+  certificate_arn = aws_acm_certificate.api_domain.arn
+}
+
+# Custom domain name for API Gateway
+resource "aws_api_gateway_domain_name" "api_domain" {
+  domain_name              = var.domain
+  regional_certificate_arn = aws_acm_certificate.api_domain.arn
+
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+
+  tags = {
+    CostCentre = var.billing_code
+    Terraform  = true
+  }
+
+  depends_on = [aws_acm_certificate_validation.api_domain]
+}
+
+# Base path mapping
+resource "aws_api_gateway_base_path_mapping" "api_domain" {
+  api_id      = aws_api_gateway_rest_api.feedback_api.id
+  stage_name  = aws_api_gateway_stage.feedback_api.stage_name
+  domain_name = aws_api_gateway_domain_name.api_domain.domain_name
+}
