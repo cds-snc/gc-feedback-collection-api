@@ -11,6 +11,7 @@ inputs = {
   region                    = "ca-central-1"
   billing_code              = "${local.vars.inputs.cost_center_code}"
   billing_tag_value         = "${local.vars.inputs.cost_center_code}"
+  domain                    = "${local.vars.inputs.domain}"
   cbs_satellite_bucket_name = "cbs-satellite-${local.vars.inputs.account_id}"
   default_tags = {
     CostCentre = "${local.vars.inputs.cost_center_code}"
