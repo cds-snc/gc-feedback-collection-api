@@ -310,12 +310,9 @@ resource "aws_acm_certificate" "api_domain" {
   }
 }
 
-# Certificate validation
-resource "aws_acm_certificate_validation" "api_domain" {
-  certificate_arn = aws_acm_certificate.api_domain.arn
-}
-
 # Custom domain name for API Gateway
+# Note: This will be created immediately but won't work until certificate validates
+# Certificate validation happens automatically after hosted_zone creates the CNAME records
 resource "aws_api_gateway_domain_name" "api_domain" {
   domain_name              = var.domain
   regional_certificate_arn = aws_acm_certificate.api_domain.arn
@@ -328,8 +325,6 @@ resource "aws_api_gateway_domain_name" "api_domain" {
     CostCentre = var.billing_code
     Terraform  = true
   }
-
-  depends_on = [aws_acm_certificate_validation.api_domain]
 }
 
 # Base path mapping
