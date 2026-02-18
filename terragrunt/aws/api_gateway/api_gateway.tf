@@ -184,7 +184,8 @@ resource "aws_api_gateway_deployment" "feedback_api" {
     aws_api_gateway_integration.problem_form_lambda,
     aws_api_gateway_integration.toptask_survey_form_lambda,
     aws_api_gateway_integration.problem_form_options,
-    aws_api_gateway_integration.toptask_survey_form_options
+    aws_api_gateway_integration.toptask_survey_form_options,
+    aws_api_gateway_integration.security_txt_get,
   ]
 
   lifecycle {
@@ -199,6 +200,9 @@ resource "aws_api_gateway_deployment" "feedback_api" {
       aws_api_gateway_resource.toptask_survey_form.id,
       aws_api_gateway_method.toptask_survey_form_post.id,
       aws_api_gateway_integration.toptask_survey_form_lambda.id,
+      aws_api_gateway_resource.security_txt.id,
+      aws_api_gateway_method.security_txt_get.id,
+      aws_api_gateway_integration.security_txt_get.id,
     ]))
   }
 }
@@ -277,6 +281,73 @@ resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
+
+# /.well-known resource
+resource "aws_api_gateway_resource" "well_known" {
+  rest_api_id = aws_api_gateway_rest_api.feedback_api.id
+  parent_id   = aws_api_gateway_rest_api.feedback_api.root_resource_id
+  path_part   = ".well-known"
+}
+
+# /.well-known/security.txt resource
+resource "aws_api_gateway_resource" "security_txt" {
+  rest_api_id = aws_api_gateway_rest_api.feedback_api.id
+  parent_id   = aws_api_gateway_resource.well_known.id
+  path_part   = "security.txt"
+}
+
+# Serve security.txt as a fixed response from the API Gateway
+resource "aws_api_gateway_method" "security_txt_get" {
+  rest_api_id   = aws_api_gateway_rest_api.feedback_api.id
+  resource_id   = aws_api_gateway_resource.security_txt.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "security_txt_get" {
+  rest_api_id = aws_api_gateway_rest_api.feedback_api.id
+  resource_id = aws_api_gateway_resource.security_txt.id
+  http_method = aws_api_gateway_method.security_txt_get.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "security_txt_get" {
+  rest_api_id = aws_api_gateway_rest_api.feedback_api.id
+  resource_id = aws_api_gateway_resource.security_txt.id
+  http_method = aws_api_gateway_method.security_txt_get.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Content-Type" = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "security_txt_get" {
+  rest_api_id = aws_api_gateway_rest_api.feedback_api.id
+  resource_id = aws_api_gateway_resource.security_txt.id
+  http_method = aws_api_gateway_method.security_txt_get.http_method
+  status_code = aws_api_gateway_method_response.security_txt_get.status_code
+
+  response_parameters = {
+    "method.response.header.Content-Type" = "'text/plain'"
+  }
+
+  response_templates = {
+    "application/json" = <<-EOT
+      Contact: mailto:ZZTBSCYBERS@tbs-sct.gc.ca
+      Contact: https://hackerone.com/tbs-sct/
+      Canonical: https://${var.domain}/.well-known/security.txt
+      Expires: 2026-03-02T12:00:00.000Z
+      Preferred-Languages: en, fr
+    EOT
+  }
+
+  depends_on = [aws_api_gateway_integration.security_txt_get]
+}
 
 # Lambda permissions for API Gateway
 resource "aws_lambda_permission" "problem_form_api_gateway" {
