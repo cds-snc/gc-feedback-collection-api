@@ -97,7 +97,7 @@ data "aws_iam_policy_document" "sns_topic_policy" {
 
 # Problem email SNS topic (receives from SES)
 module "sns_problem_topic" {
-  source = "github.com/cds-snc/terraform-modules//sns?ref=v11.4.1"
+  source = "github.com/cds-snc/terraform-modules//sns?ref=v11.4.3"
 
   name              = "${var.product_name}-problem-topic"
   billing_tag_key   = "CostCentre"
@@ -108,7 +108,7 @@ module "sns_problem_topic" {
 
 # TopTask survey SNS topic (receives from SES)
 module "sns_toptask_topic" {
-  source = "github.com/cds-snc/terraform-modules//sns?ref=v11.4.1"
+  source = "github.com/cds-snc/terraform-modules//sns?ref=v11.4.3"
 
   name              = "${var.product_name}-toptask-topic"
   billing_tag_key   = "CostCentre"
