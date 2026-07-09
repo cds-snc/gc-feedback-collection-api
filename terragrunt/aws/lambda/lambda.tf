@@ -234,6 +234,7 @@ resource "aws_lambda_permission" "queue_problem_sns" {
 }
 
 resource "aws_sns_topic_subscription" "problem_to_lambda" {
+  provider  = aws.core_services
   topic_arn = var.problem_topic_arn
   protocol  = "lambda"
   endpoint  = aws_lambda_function.queue_problem.arn
@@ -384,6 +385,7 @@ resource "aws_lambda_permission" "queue_toptask_sns" {
 }
 
 resource "aws_sns_topic_subscription" "toptask_to_lambda" {
+  provider  = aws.core_services
   topic_arn = var.toptask_topic_arn
   protocol  = "lambda"
   endpoint  = aws_lambda_function.queue_toptask.arn

@@ -58,6 +58,7 @@ resource "aws_ses_domain_mail_from" "feedback_domain" {
 
 # S3 bucket for storing received emails (optional backup)
 resource "aws_s3_bucket" "ses_emails" {
+  provider = aws.core_services
   bucket = "${var.product_name}-ses-emails-${var.account_id}"
 
   tags = {

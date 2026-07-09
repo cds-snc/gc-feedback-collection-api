@@ -109,12 +109,14 @@ resource "aws_sqs_queue_policy" "toptask_queue_policy" {
 
 # SNS to SQS subscriptions (created in SQS module to avoid circular dependencies)
 resource "aws_sns_topic_subscription" "problem_to_queue" {
+  provider  = aws.core_services
   topic_arn = var.problem_sns_topic_arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.problem_queue.arn
 }
 
 resource "aws_sns_topic_subscription" "toptask_to_queue" {
+  provider  = aws.core_services
   topic_arn = var.toptask_sns_topic_arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.toptask_queue.arn
