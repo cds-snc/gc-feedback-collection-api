@@ -58,7 +58,8 @@ resource "aws_ses_domain_mail_from" "feedback_domain" {
 
 # S3 bucket for storing received emails (optional backup)
 resource "aws_s3_bucket" "ses_emails" {
-  bucket = "${var.product_name}-ses-emails-${var.account_id}"
+  provider = aws.core_services
+  bucket   = "${var.product_name}-ses-emails-${var.account_id}"
 
   tags = {
     CostCentre = var.billing_code

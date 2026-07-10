@@ -2,6 +2,7 @@
 
 # Problem feedback queue
 resource "aws_sqs_queue" "problem_queue_dlq" {
+  provider                  = aws.core_services
   name                      = "${var.product_name}-problem-dlq"
   message_retention_seconds = 1209600 # 14 days
 
@@ -12,6 +13,7 @@ resource "aws_sqs_queue" "problem_queue_dlq" {
 }
 
 resource "aws_sqs_queue" "problem_queue" {
+  provider                   = aws.core_services
   name                       = "${var.product_name}-problem-queue"
   visibility_timeout_seconds = 300    # 5 minutes for Lambda processing
   message_retention_seconds  = 345600 # 4 days
@@ -30,6 +32,7 @@ resource "aws_sqs_queue" "problem_queue" {
 
 # TopTask survey queue
 resource "aws_sqs_queue" "toptask_queue_dlq" {
+  provider                  = aws.core_services
   name                      = "${var.product_name}-toptask-dlq"
   message_retention_seconds = 1209600 # 14 days
 
@@ -40,6 +43,7 @@ resource "aws_sqs_queue" "toptask_queue_dlq" {
 }
 
 resource "aws_sqs_queue" "toptask_queue" {
+  provider                   = aws.core_services
   name                       = "${var.product_name}-toptask-queue"
   visibility_timeout_seconds = 300    # 5 minutes for Lambda processing
   message_retention_seconds  = 345600 # 4 days
@@ -105,12 +109,14 @@ resource "aws_sqs_queue_policy" "toptask_queue_policy" {
 
 # SNS to SQS subscriptions (created in SQS module to avoid circular dependencies)
 resource "aws_sns_topic_subscription" "problem_to_queue" {
+  provider  = aws.core_services
   topic_arn = var.problem_sns_topic_arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.problem_queue.arn
 }
 
 resource "aws_sns_topic_subscription" "toptask_to_queue" {
+  provider  = aws.core_services
   topic_arn = var.toptask_sns_topic_arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.toptask_queue.arn

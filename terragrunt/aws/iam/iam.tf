@@ -61,6 +61,7 @@ data "aws_iam_policy_document" "lambda_ssm_policy" {
 
 # IAM Policy: Lambda SQS send permissions
 resource "aws_iam_policy" "lambda_sqs_policy" {
+  provider    = aws.core_services
   name        = "${var.product_name}-lambda-sqs-policy"
   description = "Allow Lambda to send messages to SQS"
   policy      = data.aws_iam_policy_document.lambda_sqs_policy.json
@@ -73,6 +74,7 @@ resource "aws_iam_policy" "lambda_sqs_policy" {
 
 # IAM Policy: Lambda SQS receive permissions
 resource "aws_iam_policy" "lambda_sqs_receive_policy" {
+  provider    = aws.core_services
   name        = "${var.product_name}-lambda-sqs-receive-policy"
   description = "Allow Lambda to receive messages from SQS"
   policy      = data.aws_iam_policy_document.lambda_sqs_receive_policy.json
@@ -85,6 +87,7 @@ resource "aws_iam_policy" "lambda_sqs_receive_policy" {
 
 # IAM Policy: Lambda SSM parameter access
 resource "aws_iam_policy" "lambda_ssm_policy" {
+  provider    = aws.core_services
   name        = "${var.product_name}-lambda-ssm-policy"
   description = "Allow Lambda to read SSM parameters for DocumentDB credentials"
   policy      = data.aws_iam_policy_document.lambda_ssm_policy.json

@@ -236,6 +236,7 @@ resource "aws_api_gateway_stage" "feedback_api" {
 
 # CloudWatch log group for API Gateway
 resource "aws_cloudwatch_log_group" "api_gateway_logs" {
+  provider          = aws.core_services
   name              = "/aws/apigateway/${var.product_name}"
   retention_in_days = 30
 
@@ -252,7 +253,8 @@ resource "aws_api_gateway_account" "main" {
 
 # IAM role for API Gateway CloudWatch logging
 resource "aws_iam_role" "api_gateway_cloudwatch" {
-  name = "${var.product_name}-api-gateway-cloudwatch-role"
+  provider = aws.core_services
+  name     = "${var.product_name}-api-gateway-cloudwatch-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -274,6 +276,7 @@ resource "aws_iam_role" "api_gateway_cloudwatch" {
 }
 
 resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch" {
+  provider   = aws.core_services
   role       = aws_iam_role.api_gateway_cloudwatch.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }

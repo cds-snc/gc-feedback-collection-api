@@ -1,5 +1,6 @@
 # KMS key for SNS topic encryption with correct SES permissions
 resource "aws_kms_key" "sns_encryption" {
+  provider                = aws.core_services
   description             = "KMS key for SNS topic encryption (SES compatible)"
   deletion_window_in_days = 10
   enable_key_rotation     = true
@@ -11,6 +12,7 @@ resource "aws_kms_key" "sns_encryption" {
 }
 
 resource "aws_kms_alias" "sns_encryption" {
+  provider      = aws.core_services
   name          = "alias/${var.product_name}-sns-encryption"
   target_key_id = aws_kms_key.sns_encryption.key_id
 }
@@ -49,8 +51,9 @@ data "aws_iam_policy_document" "kms_key_policy" {
 }
 
 resource "aws_kms_key_policy" "sns_encryption" {
-  key_id = aws_kms_key.sns_encryption.id
-  policy = data.aws_iam_policy_document.kms_key_policy.json
+  provider = aws.core_services
+  key_id   = aws_kms_key.sns_encryption.id
+  policy   = data.aws_iam_policy_document.kms_key_policy.json
 }
 
 # Data source to construct the SNS topic policy for SES access
@@ -94,7 +97,7 @@ data "aws_iam_policy_document" "sns_topic_policy" {
 
 # Problem email SNS topic (receives from SES)
 module "sns_problem_topic" {
-  source = "github.com/cds-snc/terraform-modules//sns?ref=v10.8.5"
+  source = "github.com/cds-snc/terraform-modules//sns?ref=v11.4.3"
 
   name              = "${var.product_name}-problem-topic"
   billing_tag_key   = "CostCentre"
@@ -105,7 +108,7 @@ module "sns_problem_topic" {
 
 # TopTask survey SNS topic (receives from SES)
 module "sns_toptask_topic" {
-  source = "github.com/cds-snc/terraform-modules//sns?ref=v10.8.5"
+  source = "github.com/cds-snc/terraform-modules//sns?ref=v11.4.3"
 
   name              = "${var.product_name}-toptask-topic"
   billing_tag_key   = "CostCentre"

@@ -128,6 +128,7 @@ resource "null_resource" "toptask_survey_commit_build" {
 
 # Security group for Lambda functions in VPC (shared by all Lambda functions)
 resource "aws_security_group" "lambda_sg" {
+  provider    = aws.core_services
   name        = "${var.product_name}-lambda-sg"
   description = "Security group for Lambda functions accessing DocumentDB"
   vpc_id      = var.dto_feedback_cj_vpc_id
@@ -181,7 +182,8 @@ resource "aws_lambda_function" "queue_problem" {
 }
 
 resource "aws_iam_role" "queue_problem_lambda" {
-  name = "${var.product_name}-queue-problem-lambda-role"
+  provider = aws.core_services
+  name     = "${var.product_name}-queue-problem-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -201,16 +203,19 @@ resource "aws_iam_role" "queue_problem_lambda" {
 }
 
 resource "aws_iam_role_policy_attachment" "queue_problem_sqs" {
+  provider   = aws.core_services
   role       = aws_iam_role.queue_problem_lambda.name
   policy_arn = var.lambda_sqs_policy_arn
 }
 
 resource "aws_iam_role_policy_attachment" "queue_problem_logs" {
+  provider   = aws.core_services
   role       = aws_iam_role.queue_problem_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_cloudwatch_log_group" "queue_problem" {
+  provider          = aws.core_services
   name              = "/aws/lambda/${var.product_name}-queue-problem"
   retention_in_days = 30
 
@@ -229,6 +234,7 @@ resource "aws_lambda_permission" "queue_problem_sns" {
 }
 
 resource "aws_sns_topic_subscription" "problem_to_lambda" {
+  provider  = aws.core_services
   topic_arn = var.problem_topic_arn
   protocol  = "lambda"
   endpoint  = aws_lambda_function.queue_problem.arn
@@ -259,7 +265,8 @@ resource "aws_lambda_function" "queue_problem_form" {
 }
 
 resource "aws_iam_role" "queue_problem_form_lambda" {
-  name = "${var.product_name}-queue-problem-form-lambda-role"
+  provider = aws.core_services
+  name     = "${var.product_name}-queue-problem-form-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -279,16 +286,19 @@ resource "aws_iam_role" "queue_problem_form_lambda" {
 }
 
 resource "aws_iam_role_policy_attachment" "queue_problem_form_sqs" {
+  provider   = aws.core_services
   role       = aws_iam_role.queue_problem_form_lambda.name
   policy_arn = var.lambda_sqs_policy_arn
 }
 
 resource "aws_iam_role_policy_attachment" "queue_problem_form_logs" {
+  provider   = aws.core_services
   role       = aws_iam_role.queue_problem_form_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_cloudwatch_log_group" "queue_problem_form" {
+  provider          = aws.core_services
   name              = "/aws/lambda/${var.product_name}-queue-problem-form"
   retention_in_days = 30
 
@@ -323,7 +333,8 @@ resource "aws_lambda_function" "queue_toptask" {
 }
 
 resource "aws_iam_role" "queue_toptask_lambda" {
-  name = "${var.product_name}-queue-toptask-lambda-role"
+  provider = aws.core_services
+  name     = "${var.product_name}-queue-toptask-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -343,16 +354,19 @@ resource "aws_iam_role" "queue_toptask_lambda" {
 }
 
 resource "aws_iam_role_policy_attachment" "queue_toptask_sqs" {
+  provider   = aws.core_services
   role       = aws_iam_role.queue_toptask_lambda.name
   policy_arn = var.lambda_sqs_policy_arn
 }
 
 resource "aws_iam_role_policy_attachment" "queue_toptask_logs" {
+  provider   = aws.core_services
   role       = aws_iam_role.queue_toptask_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_cloudwatch_log_group" "queue_toptask" {
+  provider          = aws.core_services
   name              = "/aws/lambda/${var.product_name}-queue-toptask"
   retention_in_days = 30
 
@@ -371,6 +385,7 @@ resource "aws_lambda_permission" "queue_toptask_sns" {
 }
 
 resource "aws_sns_topic_subscription" "toptask_to_lambda" {
+  provider  = aws.core_services
   topic_arn = var.toptask_topic_arn
   protocol  = "lambda"
   endpoint  = aws_lambda_function.queue_toptask.arn
@@ -401,7 +416,8 @@ resource "aws_lambda_function" "queue_toptask_survey_form" {
 }
 
 resource "aws_iam_role" "queue_toptask_survey_form_lambda" {
-  name = "${var.product_name}-queue-toptask-survey-form-lambda-role"
+  provider = aws.core_services
+  name     = "${var.product_name}-queue-toptask-survey-form-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -421,16 +437,19 @@ resource "aws_iam_role" "queue_toptask_survey_form_lambda" {
 }
 
 resource "aws_iam_role_policy_attachment" "queue_toptask_survey_form_sqs" {
+  provider   = aws.core_services
   role       = aws_iam_role.queue_toptask_survey_form_lambda.name
   policy_arn = var.lambda_sqs_policy_arn
 }
 
 resource "aws_iam_role_policy_attachment" "queue_toptask_survey_form_logs" {
+  provider   = aws.core_services
   role       = aws_iam_role.queue_toptask_survey_form_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_cloudwatch_log_group" "queue_toptask_survey_form" {
+  provider          = aws.core_services
   name              = "/aws/lambda/${var.product_name}-queue-toptask-survey-form"
   retention_in_days = 30
 
@@ -478,7 +497,8 @@ resource "aws_lambda_function" "problem_commit" {
 
 # IAM role for problem_commit Lambda
 resource "aws_iam_role" "problem_commit_lambda" {
-  name = "${var.product_name}-problem-commit-lambda-role"
+  provider = aws.core_services
+  name     = "${var.product_name}-problem-commit-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -501,23 +521,27 @@ resource "aws_iam_role" "problem_commit_lambda" {
 
 # Attach policies to problem_commit Lambda role
 resource "aws_iam_role_policy_attachment" "problem_commit_sqs" {
+  provider   = aws.core_services
   role       = aws_iam_role.problem_commit_lambda.name
   policy_arn = var.lambda_sqs_receive_policy_arn
 }
 
 resource "aws_iam_role_policy_attachment" "problem_commit_ssm" {
+  provider   = aws.core_services
   role       = aws_iam_role.problem_commit_lambda.name
   policy_arn = var.lambda_ssm_policy_arn
 }
 
 # Attach VPC execution policy for problem_commit Lambda
 resource "aws_iam_role_policy_attachment" "problem_commit_vpc" {
+  provider   = aws.core_services
   role       = aws_iam_role.problem_commit_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 # CloudWatch Log Group for problem_commit Lambda
 resource "aws_cloudwatch_log_group" "problem_commit" {
+  provider          = aws.core_services
   name              = "/aws/lambda/${var.product_name}-problem-commit"
   retention_in_days = 30
 
@@ -591,7 +615,8 @@ resource "aws_lambda_function" "toptask_survey_commit" {
 
 # IAM role for toptask_survey_commit Lambda
 resource "aws_iam_role" "toptask_survey_commit_lambda" {
-  name = "${var.product_name}-toptask-survey-commit-lambda-role"
+  provider = aws.core_services
+  name     = "${var.product_name}-toptask-survey-commit-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -614,23 +639,27 @@ resource "aws_iam_role" "toptask_survey_commit_lambda" {
 
 # Attach policies to toptask_survey_commit Lambda role
 resource "aws_iam_role_policy_attachment" "toptask_survey_commit_sqs" {
+  provider   = aws.core_services
   role       = aws_iam_role.toptask_survey_commit_lambda.name
   policy_arn = var.lambda_sqs_receive_policy_arn
 }
 
 resource "aws_iam_role_policy_attachment" "toptask_survey_commit_ssm" {
+  provider   = aws.core_services
   role       = aws_iam_role.toptask_survey_commit_lambda.name
   policy_arn = var.lambda_ssm_policy_arn
 }
 
 # Attach VPC execution policy for toptask_survey_commit Lambda
 resource "aws_iam_role_policy_attachment" "toptask_survey_commit_vpc" {
+  provider   = aws.core_services
   role       = aws_iam_role.toptask_survey_commit_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 # CloudWatch Log Group for toptask_survey_commit Lambda
 resource "aws_cloudwatch_log_group" "toptask_survey_commit" {
+  provider          = aws.core_services
   name              = "/aws/lambda/${var.product_name}-toptask-survey-commit"
   retention_in_days = 30
 
