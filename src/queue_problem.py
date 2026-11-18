@@ -151,7 +151,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             # Sanitize the text: replace semicolons after the 8th occurrence
             text = sanitize_text(text)
 
-            logger.info(f"Problem Queue Item: {text}")
+            logger.info(f"Problem queue item received ({len(text)} chars)")
 
             # Send to SQS queue
             try:

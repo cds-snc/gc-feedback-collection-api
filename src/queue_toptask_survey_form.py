@@ -95,7 +95,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # Convert to JSON string for queue (form submission format)
         json_data = json.dumps(survey_data, indent=2)
-        logger.info(json_data)
 
         logger.info("Trying to add to queue")
 

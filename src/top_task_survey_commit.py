@@ -187,7 +187,6 @@ def parse_toptask_delimited(top_task_data: list) -> Optional[TopTask]:
             toptask.dept = top_task_data[5]
             toptask.theme = top_task_data[6]
             toptask.theme_other = top_task_data[7]
-            logger.info(f"Theme Other: {toptask.theme_other}")
             toptask.grouping = top_task_data[8]
             toptask.task = top_task_data[9]
             toptask.task_other = top_task_data[10]
@@ -198,7 +197,6 @@ def parse_toptask_delimited(top_task_data: list) -> Optional[TopTask]:
             toptask.dept = top_task_data[11]
             toptask.theme = top_task_data[12]
             toptask.theme_other = top_task_data[7]
-            logger.info(f"Theme Other: {toptask.theme_other}")
             toptask.grouping = top_task_data[13]
             toptask.task = top_task_data[14]
             toptask.task_other = top_task_data[15]
@@ -307,7 +305,7 @@ def process_queue_messages() -> tuple:
                     # HTML decode
                     decoded_string = unescape(decoded_string)
 
-                    logger.info(f"Decoded string: {decoded_string}")
+                    logger.info(f"Message decoded ({len(decoded_string)} chars)")
 
                     # Determine format: JSON (form) or delimited (email)
                     toptask = None
