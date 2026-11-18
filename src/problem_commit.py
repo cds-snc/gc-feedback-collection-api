@@ -200,8 +200,6 @@ def process_queue_messages() -> tuple:
                     except Exception:
                         decoded_string = message_body
 
-                    logger.info(f"Before HTML decode: {decoded_string}")
-
                     # HTML decode
                     decoded_string = unescape(decoded_string)
 

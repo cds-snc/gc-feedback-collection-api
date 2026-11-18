@@ -214,7 +214,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         queue_data_length = len(queue_data.split(";"))
         logger.info(f"Number of items in queueData: {queue_data_length}")
-        logger.info(queue_data)
 
         # Send to SQS queue
         response = sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=queue_data)

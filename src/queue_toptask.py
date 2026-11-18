@@ -160,7 +160,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             html_text = body
 
         if html_text:
-            logger.info(f"TopTask Queue Item: {html_text}")
+            logger.info(f"TopTask queue item received ({len(html_text)} chars)")
 
             # Send to SQS queue
             try:
